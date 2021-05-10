@@ -5,6 +5,10 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 void dostuff(int); /* function prototype */
 void error(const char *msg)
@@ -66,16 +70,21 @@ int main(int argc, char *argv[])
 void dostuff(int sock)
 {
     int n;
-	char *response = 
+	std::ifstream file("default/index.html");
+	std::ostringstream text; 
+	text << file.rdbuf();
+	std::string response = 
 	"HTTP/1.1 200 OK\n"
 	"Date: Mon, 27 Jul 2009 12:28:53 GMT\n"
 	"Server: Apache/2.2.14 (Win32)\n"
 	"Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT\n"
-	"Content-Length: 49\n"
+	"Content-Length:" 
+	+ std::to_string(text.str().size()) +
+	"\n"
 	"Content-Type: text/html\n"
 	"Connection: Closed\n"
 	"\n"
-	"<html><body><h1>Hello, World!</h1></body></html>\n";
+	+ text.str();
     char buffer[2048];
 
     bzero(buffer, 2048);
@@ -83,8 +92,8 @@ void dostuff(int sock)
     if (n < 0)
         error("ERROR reading from socket");
     printf("Here is the message: %s\n", buffer);
-	n = write(sock, response, strlen(response));
-	dprintf(1, "combien tu as print mon coquin ? %d %lu", n, strlen(response));
+	n = write(sock, response.c_str(), strlen(response.c_str()));
+	dprintf(1, "combien tu as print mon coquin ? %d %lu", n, strlen(response.c_str()));
     if (n < 0)
         error("ERROR writing to socket");
 }
