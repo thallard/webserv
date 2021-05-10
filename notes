@@ -1,0 +1,34 @@
+200 -> GET OK
+304 -> GET NOT modified
+501 (Not Implemented)
+405 (Method Not Allowed)
+
+HEAD
+
+
+POST -> 206 (Partial Content)
+POST -> 304 (Not Modified)
+POST -> 416 (Range Not Satisfiable)
+
+PUT -> 200 OK
+PUT -> 201 (Created) (server response for the user)
+PUT -> 204 (No Content)
+PUT -> 415 (Unsupported Media Type)
+PUT -> 409 (Conflict)
+PUT -> 400 (Bad Request) (si le content-range est set)
+
+
+DELETE -> 200 (OK)
+DELETE -> 201 (Created)
+DELETE -> 202 (Accepted)
+DELETE -> 204 (No Content)
+ GET     | Transfer a current representation of the target | 4.3.1 |
+   |         | resource.                                       |       |
+   | HEAD    | Same as GET, but only transfer the status line  | 4.3.2 |
+   |         | and header section.                             |       |
+   | POST    | Perform resource-specific processing on the     | 4.3.3 |
+   |         | request payload.                                |       |
+   | PUT     | Replace all current representations of the      | 4.3.4 |
+   |         | target resource with the request payload.       |       |
+   | DELETE  | Remove all current representations of the       | 4.3.5 |
+   |         | target resource.
