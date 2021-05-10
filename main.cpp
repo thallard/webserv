@@ -66,14 +66,25 @@ int main(int argc, char *argv[])
 void dostuff(int sock)
 {
     int n;
-    char buffer[256];
+	char *response = 
+	"HTTP/1.1 200 OK\n"
+	"Date: Mon, 27 Jul 2009 12:28:53 GMT\n"
+	"Server: Apache/2.2.14 (Win32)\n"
+	"Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT\n"
+	"Content-Length: 49\n"
+	"Content-Type: text/html\n"
+	"Connection: Closed\n"
+	"\n"
+	"<html><body><h1>Hello, World!</h1></body></html>\n";
+    char buffer[2048];
 
-    bzero(buffer, 256);
-    n = read(sock, buffer, 255);
+    bzero(buffer, 2048);
+    n = read(sock, buffer, 2048);
     if (n < 0)
         error("ERROR reading from socket");
     printf("Here is the message: %s\n", buffer);
-    n = write(sock, "I got your message", 18);
+	n = write(sock, response, strlen(response));
+	dprintf(1, "combien tu as print mon coquin ? %d %lu", n, strlen(response));
     if (n < 0)
         error("ERROR writing to socket");
 }
