@@ -1,6 +1,8 @@
 #include "Utils.hpp"
 #include "Server.hpp"
+#include "Headers.hpp"
 
+using namespace std;
 void dostuff(int); /* function prototype */
 void error(const char *msg)
 {
@@ -55,19 +57,16 @@ int main(int argc, char *argv[])
 		if (select(server.getSocket() + 1, &read_fds2, &write_fds2, NULL, &tv) > 0)
 		{
             //FD_ISSET()
-			if(FD_ISSET(server.getSocket(), &read_fds2))
-               dprintf(1,"READ\n");
-			else if(FD_ISSET(server.getSocket(), &write_fds2))
-                dprintf(1,"WRITE\n");
-
+			if(!FD_ISSET(server.getSocket(), &read_fds) || !FD_ISSET(server.getSocket(), &write_fds))
+               error("ERROR non-set socket");
 			newsockfd = accept(server.getSocket(), (struct sockaddr *)server.getCliAddr_ptr(), &clilen);
 			if (newsockfd < 0)
 				error("ERROR on accept");
 			dostuff(newsockfd);
 			close(newsockfd);
 		}
-		else
-			dprintf(1, "No response pendant 10sec\n");
+		// else
+			// dprintf(1, "No response pendant 10sec\n");
 	}
 	return 0;
 }
@@ -75,27 +74,42 @@ int main(int argc, char *argv[])
 void dostuff(int sock)
 {
 	int n;
-	std::ifstream file("default/index.html");
-	std::ostringstream text;
+	ifstream file("default/index.html");
+	ostringstream text;
 	text << file.rdbuf();
-	std::string response =
-		"HTTP/1.1 200 OK\n"
-		"Date: Mon, 27 Jul 2009 12:28:53 GMT\n"
-		"Server: Apache/2.2.14 (Win32)\n"
-		"Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT\n"
-		"Content-Length:" +
-		std::to_string(text.str().size()) +
-		"\n"
-		"Content-Type: text/html\n"
-		"Connection: Closed\n"
-		"\n" +
-		text.str();
+	string response = "";
+		// "HTTP/1.1 204 No Content\n"
+		// "Date: Mon, 27 Jul 2009 12:28:53 GMT\n"
+		// "Server: th-inx\n"
+		// "Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT\n"
+		// "Content-Length:" +
+		// std::to_string(text.str().size()) +
+		// "\n"
+		// "Content-Type: text/html\n"
+		// "\n";
 	char buffer[4096];
 	bzero(buffer, 4096);
 	n = read(sock, buffer, 4096);
+	// Test
+	Headers header;
+	header += string(buffer);
+	map<string, string>oui = header.last();
+	int err_code = 0;
+	if ((err_code = header.check(oui)) == 1)
+	{
+		dprintf(1,"Wrong http version\n");
+		return ;
+	}
+	else if (!dispatcher_type_requests(oui))
+		;
+
+	for(map<string, string>::iterator it = oui.begin(); it != oui.end(); it++)
+		dprintf(1,"\e[92m%s\e[0m -> |\e[93m%s\e[0m|\n", it->first.c_str(), it->second.c_str());
+
+	// Fin de test;
 	if (n < 0)
 		error("ERROR reading from socket");
-	printf("\e[95mHere is the message: %s\e[0m\n", buffer);
+	//printf("\e[95mHere is the message:\n%s\e[0m\n", buffer);
 	n = write(sock, response.c_str(), strlen(response.c_str()));
 	// dprintf(1, "combien tu as print mon coquin ? %d %lu", n, strlen(response.c_str()));
 	if (n < 0)

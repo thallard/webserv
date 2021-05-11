@@ -2,11 +2,13 @@ SRC_DIR	:= srcs/
 OBJ_DIR	:= obj/
 
 classes = Classes
+core = Core
 
-OBJ_DIRS = $(addprefix $(OBJ_DIR), $(classes))
+OBJ_DIRS = $(addprefix $(OBJ_DIR), $(classes) $(core))
 
 PRE_SRCS	=	main \
-		$(classes)/Server
+		$(classes)/Server $(classes)/Headers \
+		$(core)/Handler
 
 SRCS = $(addsuffix .cpp, $(addprefix $(SRC_DIR), $(PRE_SRCS)))
 OBJS = $(addsuffix .o, $(addprefix $(OBJ_DIR), $(PRE_SRCS)))
