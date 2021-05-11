@@ -6,7 +6,7 @@
 /*   By: thallard <thallard@student.42lyon.fr>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/05/10 14:51:19 by thallard          #+#    #+#             */
-/*   Updated: 2021/05/11 13:16:51 by thallard         ###   ########lyon.fr   */
+/*   Updated: 2021/05/11 17:31:57 by thallard         ###   ########lyon.fr   */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,13 +28,20 @@
 #include <fcntl.h>
 #include <sys/select.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <unistd.h>
+#include <time.h>
 #include <map>
 using namespace std;
 
 
 #define ERROR 0
 #define SUCCESS 1
+
+#define STATUS_OK 200
+#define STATUS_NO_CONTENT 204
+
+#define STATUS_NOT_FOUND 404
 
 int dispatcher_type_requests(map<string, string> request);
 

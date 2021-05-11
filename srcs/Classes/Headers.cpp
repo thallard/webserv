@@ -55,11 +55,43 @@ int Headers::check(map<string, string> actual)
 {
 	dprintf(1, "%s\n", actual.find("HTTP-Ver")->second.c_str());
 	string ver = actual.find("HTTP-Ver")->second;
-	if (strncmp(actual.find("HTTP-Ver")->second.c_str(), "1.1", 3))
-		return 1; // 505 bad version
+	if (strcmp(actual.find("HTTP-Ver")->second.c_str(), "1.1"))
+		return 505; // 505 bad version
 	if (actual.find("Location")->second.size() > 100000000)
-		return 2; // 414 too long uri
+		return 414; // 414 too long uri
 	if (!actual.count("Host"))
-		return 3; // 400 no host
-	return 0;
+		return 400; // 400 no host
+	if (!strcmp(actual.find("Request-Type")->second.c_str(), "POST") && !actual.find("Content")->second.size())
+		return 204;
+	return 200;
+}
+
+string Headers::return_response_header(int status, Headers header)
+{
+	(void)status;
+	(void)header;
+	string response;
+
+	// Parse status code
+	switch (status)
+	{
+		case STATUS_OK:
+			response = "HTTP/1.1 200 OK\n\r";
+			break;
+		case STATUS_NO_CONTENT:
+			response = "HTTP/1.1 204 No Content\n\r";
+			break;
+		case STATUS_NOT_FOUND:
+			response =  "HTTP/1.1 404 Not Found\n\r";
+			break;
+		default:
+			break;
+	}
+
+	// Parse date
+	struct timeval tv;
+	struct timezone tz;
+	gettimeofday(&tv, &tz);
+	
+	return (response);
 }

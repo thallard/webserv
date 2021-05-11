@@ -8,6 +8,8 @@ OBJ_DIRS = $(addprefix $(OBJ_DIR), $(classes) $(core))
 
 PRE_SRCS	=	main \
 		$(classes)/Server $(classes)/Headers \
+		$(classes)/Config \
+		\
 		$(core)/Handler
 
 SRCS = $(addsuffix .cpp, $(addprefix $(SRC_DIR), $(PRE_SRCS)))

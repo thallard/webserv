@@ -1,6 +1,7 @@
 #include "Utils.hpp"
 #include "Server.hpp"
 #include "Headers.hpp"
+#include "Config.hpp"
 
 using namespace std;
 void dostuff(int); /* function prototype */
@@ -19,7 +20,7 @@ int main(int argc, char *argv[])
 {
 	int newsockfd;
 	socklen_t clilen;
-
+	(void)argv;
 	if (argc < 2)
 	{
 		fprintf(stderr, "ERROR, no port provided\n");
@@ -27,7 +28,9 @@ int main(int argc, char *argv[])
 	}
 
 	//Socket() && IOCTL() && BIND()
-	Server server(atoi(argv[1]));
+	Server server(8080);
+	Config config(argv[1]);
+	cout << "heho je suis sortit de config" << endl;
 
 	//LISTEN()
 	listen(server.getSocket(), 5);
@@ -65,8 +68,9 @@ int main(int argc, char *argv[])
 			dostuff(newsockfd);
 			close(newsockfd);
 		}
-		// else
+		 //else
 			// dprintf(1, "No response pendant 10sec\n");
+			//dprintf(1, "hey!\n");
 	}
 	return 0;
 }
@@ -77,16 +81,19 @@ void dostuff(int sock)
 	ifstream file("default/index.html");
 	ostringstream text;
 	text << file.rdbuf();
-	string response = "";
-		// "HTTP/1.1 204 No Content\n"
-		// "Date: Mon, 27 Jul 2009 12:28:53 GMT\n"
-		// "Server: th-inx\n"
-		// "Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT\n"
-		// "Content-Length:" +
-		// std::to_string(text.str().size()) +
-		// "\n"
-		// "Content-Type: text/html\n"
-		// "\n";
+	
+	std::string response1 =
+		
+		"Date: Mon, 27 Jul 2009 12:28:53 GMT\n"
+		"Server: Apache/2.2.14 (Win32)\n"
+		"Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT\n"
+		"Content-Length:" +
+		std::to_string(text.str().size()) +
+		"\n"
+		"Content-Type: text/html\n"
+		"Connection: Closed\n"
+		"\n" +
+		text.str();
 	char buffer[4096];
 	bzero(buffer, 4096);
 	n = read(sock, buffer, 4096);
@@ -94,15 +101,18 @@ void dostuff(int sock)
 	Headers header;
 	header += string(buffer);
 	map<string, string>oui = header.last();
-	int err_code = 0;
-	if ((err_code = header.check(oui)) == 1)
-	{
-		dprintf(1,"Wrong http version\n");
-		return ;
-	}
-	else if (!dispatcher_type_requests(oui))
+	int status_code = 0;
+	status_code = header.check(oui);
+	// if (status_code != STATUS_OK)
+	// {
+	// 	//  string response = header.return_response_header(status_code, header);
+	// 	// n = write(sock, response.c_str(), strlen(response.c_str()));
+	// 	return ;
+	// }
+	if (!dispatcher_type_requests(oui))
 		;
-
+	 string response = header.return_response_header(status_code, header);
+	 response += response1;
 	for(map<string, string>::iterator it = oui.begin(); it != oui.end(); it++)
 		dprintf(1,"\e[92m%s\e[0m -> |\e[93m%s\e[0m|\n", it->first.c_str(), it->second.c_str());
 
@@ -111,7 +121,8 @@ void dostuff(int sock)
 		error("ERROR reading from socket");
 	//printf("\e[95mHere is the message:\n%s\e[0m\n", buffer);
 	n = write(sock, response.c_str(), strlen(response.c_str()));
-	// dprintf(1, "combien tu as print mon coquin ? %d %lu", n, strlen(response.c_str()));
+		dprintf(1, "combien tu as print mon coquin ? %d %lu\n", n, strlen(response.c_str()));
+	cout << "\e[95mHEADER RENVOYEE:\n" << response << "\e[0m" << endl;
 	if (n < 0)
 		error("ERROR writing to socket_nbet");
 }
