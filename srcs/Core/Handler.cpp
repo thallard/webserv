@@ -49,7 +49,7 @@ int dispatcher_type_requests(map<string, string> request)
 	string possibility_requests[4] = {"GET", "POST", "PUT", "HEAD"};
 	string *res;
 	// POST check si j'ai les methodes allowed
-	if ((res = find(possibility_requests, possibility_requests + 4, request.find("Request-Type")->second)))
+	if ((res = find(possibility_requests, possibility_requests + 3, request.find("Request-Type")->second)))
 	{
 		if (*res == "GET")
 			dprintf(1, "GET\n");

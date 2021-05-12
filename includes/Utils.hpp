@@ -6,7 +6,7 @@
 /*   By: thallard <thallard@student.42lyon.fr>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/05/10 14:51:19 by thallard          #+#    #+#             */
-/*   Updated: 2021/05/11 17:31:57 by thallard         ###   ########lyon.fr   */
+/*   Updated: 2021/05/12 13:23:26 by thallard         ###   ########lyon.fr   */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,6 +32,8 @@
 #include <unistd.h>
 #include <time.h>
 #include <map>
+#include <vector>
+#include <pthread.h>
 using namespace std;
 
 
@@ -43,6 +45,13 @@ using namespace std;
 
 #define STATUS_NOT_FOUND 404
 
+#define DEFAULT_PATH "default/default.conf"
+
+#define MAX_WORKERS 50 
+
+#define DEFAULT_PORT 8080
+
 int dispatcher_type_requests(map<string, string> request);
+void *main_loop(void * arg);
 
 #endif

@@ -13,7 +13,7 @@ public:
 	void operator+=(string);
 	~Headers();
 	map<string, string> operator[](int n) { return _headers[n]; };
-	string return_response_header(int status, Headers header);
+	string return_response_header(int status, Headers header, size_t size_content);
 	size_t size() { return _headers.size(); };
 	size_t count() { return _headers.size() - 1; };
 	map<string, string> last() { return _headers[count()]; };

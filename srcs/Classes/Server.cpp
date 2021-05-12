@@ -25,3 +25,21 @@ Server::~Server()
 {
 	close(_socket);
 }
+
+Server &Server::operator=(Server const & ref)
+{
+
+	_serv_addr = ref._serv_addr;
+	_cli_addr = ref._cli_addr;
+
+	_id = ref._id;
+	_socket = ref._socket;
+
+	_name = ref._name;
+	_root = ref._root;
+
+	_locations = ref._locations;
+	_error_pages = ref._error_pages;
+
+	return *this;
+}
