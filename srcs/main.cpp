@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
 	    fd_set read_fds2 = read_fds;
         //SELECT()
 		////////////////// /!\ HERE BG
-		if (select(server.getSocket() + 1, &read_fds2, &write_fds2, NULL, &tv) > 0) // TODO Pas besoin de 2 sets de fds
+		if (select(server.getSocket() + 1, &read_fds2, &write_fds2, NULL, &tv) > 0) // thallard : attention ici, peut etre nutiliser quun socket si on a des comportements indefinis
 		{
 			// Search for an available worker
 				int i = 0;
