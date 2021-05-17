@@ -8,13 +8,13 @@ using namespace std;
 static int count_requests = 0;
 static pthread_mutex_t  print_mutex = PTHREAD_MUTEX_INITIALIZER;
 void dostuff(int); /* function prototype */
+
+
 void error(const char *msg)
 {
 	perror(msg);
 	exit(1);
 }
-
-
 
 void *main_loop(void * arg)
 {
@@ -47,18 +47,21 @@ void *main_loop(void * arg)
 
 int main(int argc, char *argv[])
 {
-	int newsockfd;
-	socklen_t clilen;
+	//int newsockfd;
+	//socklen_t clilen;
+	
+	string path;
 	if (argc < 2)
-	{
-		fprintf(stderr, "ERROR, no port provided\n");
-		exit(1);
-	}
+		path = "./default/default.conf";
+	else
+		path = argv[1];
+	
+
+	Config config(path);
 		
 
 	//Socket() && IOCTL() && BIND()
-	Server server(8080);
-	Config config(argv[1]);
+	//Server server(8080);
 	for (int i = 0; i < config.getCountWorkers(); i++)
 	{
 		pthread_t *thread = config.getWorkers().find(i)->second->getThread();
@@ -76,64 +79,83 @@ int main(int argc, char *argv[])
 
 
 
+	// for(int i = 0; i < config.getServers().size(); i++)
+	// 	listen(config.getServers()[i].getSocket(), 4096); // TODO Attention ici il faut le monter a 4096 sinon le tester passe pas !
 
-	listen(server.getSocket(), 4096); // TODO Attention ici il faut le monter a 4096 sinon le tester passe pas !
-
-	clilen = sizeof(server.getCliAddr());
+	///clilen = sizeof(server.getCliAddr());
 
 	//FD_ZERO()
-	fd_set write_fds;
-	fd_set read_fds;
+	// fd_set write_fds;
+	// fd_set read_fds;
 
-	FD_ZERO(&write_fds);
-	FD_ZERO(&read_fds);
+	// FD_ZERO(&write_fds);
+	// FD_ZERO(&read_fds);
 
-	//FD_SET()
-	FD_SET(server.getSocket(), &write_fds);
-	FD_SET(server.getSocket(), &read_fds);
+	// //FD_SET()
+	// FD_SET(server.getSocket(), &write_fds);
+	// FD_SET(server.getSocket(), &read_fds);
 
 	// Timeout
-	struct timeval tv;
+	for(size_t i = 0; i < config.getServers().size(); i++)
+	{
+		if(!fork())
+			config.getAt(i)->run(config.getWorkers(), config.getCountWorkers());
+		else
+			cout << "Server [\e[" << 92 + i  << ";1m" << i << "\e[0m] launched !" << endl;
+	}
+	while (1);
+///TEST
+
+	/*struct timeval tv;
 	tv.tv_usec = 0;
-	tv.tv_sec = 10;
+	tv.tv_sec = 3;
 	while (1)
 	{
-        fd_set write_fds2 = write_fds;
-	    fd_set read_fds2 = read_fds;
-        //SELECT()
-		////////////////// /!\ HERE BG
-		if (select(server.getSocket() + 1, &read_fds2, &write_fds2, NULL, &tv) > 0) // thallard : attention ici, peut etre nutiliser quun socket si on a des comportements indefinis
-		{
-			// Search for an available worker
-				int i = 0;
-			while (1)
-			{		
-				i = 0;
-				while (!config.getWorkers().find(i)->second->getStatus() && i < config.getCountWorkers() - 1)
-					i++;
-				if (config.getWorkers().find(i)->second->getStatus())
-					break ;
-			}
+		cout << "\e[1;91mnew while\e[0m\n";
+		 for (size_t j = 0; j < 2; j++)
+		 {
+			Server server = *test[j];
+			cout << server.getName() << " : " << server.getSocket() << endl;
 			
-			cout << "Worker " << i << " is available!\n";
-			if (!config.getWorkers().find(0)->second->getStatus())
-				dprintf(1, "\e[0;91mWorker 0 not available!\e[0m\n");
-            //FD_ISSET()
-			if(!FD_ISSET(server.getSocket(), &read_fds) || !FD_ISSET(server.getSocket(), &write_fds))
-               error("ERROR non-set socket");
-			newsockfd = accept(server.getSocket(), (struct sockaddr *)server.getCliAddr_ptr(), &clilen);
-			if (newsockfd < 0)
-				error("ERROR on accept");
-			dostuff(newsockfd);
-			close(newsockfd);
+			
+			fd_set write_fds2 =  write_fds;
+			fd_set read_fds2 =  read_fds;
+
+			//SELECT()
+			////////////////// /!\ HERE BG
+			if (select(server.getSocket() + 1, &read_fds2, &write_fds2, NULL, &tv) > 0) // thallard : attention ici, peut etre nutiliser quun socket si on a des comportements indefinis
+			{
+				// Search for an available worker
+				int i = 0;
+				while (1)
+				{		
+					i = 0;
+					while (!config.getWorkers().find(i)->second->getStatus() && i < config.getCountWorkers() - 1)
+						i++;
+					if (config.getWorkers().find(i)->second->getStatus())
+						break ;
+				}
+				
+				cout << "Worker " << i << " is available!\n";
+				if (!config.getWorkers().find(0)->second->getStatus())
+					dprintf(1, "\e[0;91mWorker 0 not available!\e[0m\n");
+				//FD_ISSET()
+				if(!FD_ISSET(server.getSocket(), &read_fds) || !FD_ISSET(server.getSocket(), &write_fds))
+					error("ERROR non-set socket");
+				newsockfd = accept(server.getSocket(), (struct sockaddr *)server.getCliAddr_ptr(), &clilen);
+				if (newsockfd < 0)
+					error("ERROR on accept");
+				dostuff(newsockfd);
+				close(newsockfd);
+			}
+			else
+				dprintf(1, "No response pendant 10sec\n");
+				//dprintf(1, "hey!\n");
+				// return 1;
+				// return 1;
+				//dprintf(1, "miaou miaou %d\n", config.getWorkers().find(0)->second->getStatus());
 		}
-		 //else
-			// dprintf(1, "No response pendant 10sec\n");
-			//dprintf(1, "hey!\n");
-			// return 1;
-			// return 1;
-			dprintf(1, "miaou miaou %d\n", config.getWorkers().find(0)->second->getStatus());
-	}
+	}*/
 	return 0;
 }
 

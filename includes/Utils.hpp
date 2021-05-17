@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Utils.hpp                                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: thallard <thallard@student.42lyon.fr>      +#+  +:+       +#+        */
+/*   By: thjacque <thjacque@student.42lyon.fr>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/05/10 14:51:19 by thallard          #+#    #+#             */
-/*   Updated: 2021/05/12 13:23:26 by thallard         ###   ########lyon.fr   */
+/*   Updated: 2021/05/17 14:27:39 by thjacque         ###   ########lyon.fr   */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -53,5 +53,6 @@ using namespace std;
 
 int dispatcher_type_requests(map<string, string> request);
 void *main_loop(void * arg);
+
 
 #endif

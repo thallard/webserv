@@ -62,7 +62,7 @@ bool is_not_whitespace(string line)
 
 // PARSING INDEPENDANT ================================================================================
 
-pair<string, map<string, string> > parseLocation(int fd, int *numb, char *path, string line)
+pair<string, map<string, string> > parseLocation(int fd, int *numb, string path, string line)
 {
 	string loc = get_val(line);
 	map<string, string> params;
@@ -77,9 +77,6 @@ pair<string, map<string, string> > parseLocation(int fd, int *numb, char *path, 
 
 	char c;
 
-	(void)fd;
-	(void)numb;
-	(void)path;
 	while ((ret = read(fd, &c, 1)) > 0)
 	{
 		if (c == '#')
@@ -130,7 +127,7 @@ pair<string, map<string, string> > parseLocation(int fd, int *numb, char *path, 
 	return make_pair(loc, params);
 }
 
-map<int, string> parseErrorPages(int fd, int *numb, map<int, string>default_pages, char *path)
+map<int, string> parseErrorPages(int fd, int *numb, map<int, string>default_pages, string path)
 {
 	bool in = false;
 	bool start = false;
@@ -224,7 +221,7 @@ void Config::setWorkers(string line)
 
 //TODO if port exist, default_server > other
 
-Server Config::parseServer(int fd, string line, char *path, int *numb)
+void Config::parseServer(int fd, string line, string path, int *numb)
 {
 	//map<string, map<string, string> config;
 	bool start = false;
@@ -237,7 +234,7 @@ Server Config::parseServer(int fd, string line, char *path, int *numb)
 	char c;
 
 	string name = "default_server";
-	string root = "default/";
+	string root = "default/index.html";
 
 	map<int, string> error_pages;
 	map<string, map<string, string> > locations;
@@ -342,31 +339,28 @@ Server Config::parseServer(int fd, string line, char *path, int *numb)
 		cout << "\e[91mmissing '\e[1;91m}\e[0;91m' in \e[1;91m" << path<< ":" << n << "\e[0m" << endl;
 		exit(1);
 	}
+
 	*numb = n;
-	Server server(port);
-	server.setId(_servers.size());
-	server.setName(name);
-	server.setRoot(root);
-	server.setErrorPages(error_pages);
-	server.setLocations(locations);
-	return server;
+	_t_preServ preServ = {_pre_Serv.size(), port, name, root, error_pages, locations};
+
+	_pre_Serv.push_back(preServ);
 }
 
 
 
 // PARSIN =================================================================================================
 
-Config::Config(char *path)
+Config::Config(string path)
 {
 	int fd;
-	fd = open(path, O_RDONLY | O_DIRECTORY | O_NONBLOCK);
+	fd = open(path.c_str(), O_RDONLY | O_DIRECTORY | O_NONBLOCK);
 	if (fd != -1)
 	{
 		cout << "\e[91mWebServ: " << path << ": is a directory." << endl;
 		exit(1);
 	}
 	close(fd);
-	fd = open(path, O_RDONLY | O_NONBLOCK);
+	fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
 	if (fd < 3)
 	{
 		cout << "\e[91mWebServ: " << path << ": canno't open file." << endl;
@@ -414,7 +408,7 @@ Config::Config(char *path)
 						i = 4;
 						break;
 					case 2:
-						_servers.push_back(parseServer(fd, line, path, &n));
+						parseServer(fd, line, path, &n);
 						i = 4;
 						break;
 					default:
@@ -428,7 +422,11 @@ Config::Config(char *path)
 			line.clear();
 		}
 	}
+
+
 	close(fd);
+	for (size_t j = 0; j < _pre_Serv.size(); j++)
+		_servers.push_back(new Server(_pre_Serv[j].id, _pre_Serv[j].port, _pre_Serv[j].name, _pre_Serv[j].root, _pre_Serv[j].err, _pre_Serv[j].loc));
 	for (int i = 0; i < _count_workers; i++)
 	{
 		Worker *worker = new Worker(i);
@@ -438,11 +436,12 @@ Config::Config(char *path)
 
 Config::~Config() 
 {
+	//close(_fd);
 	// for (int i = 0; i < getCountWorkers(); i++)
 	// 	delete this->getWorkers().find(i)->second->getThread();
 }
 
 int Config::getCountWorkers() { return _count_workers; }
 map<int, Worker *> Config::getWorkers() { return _workers;}
-vector<Server> Config::getServers() { return _servers; }
+vector<Server *> Config::getServers() { return _servers; }
 // map<int, Worker

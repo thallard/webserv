@@ -1,15 +1,17 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 #include "Utils.hpp"
+#include "Worker.hpp"
 
 using namespace std;
+
 class Server
 {		
 	public:
 		typedef struct sockaddr_in sock_addr;
 
 	private:
-	Server();
+		Server();
 		sock_addr _serv_addr;
 		sock_addr _cli_addr;
 
@@ -21,8 +23,15 @@ class Server
 
 		map<string, map<string, string> > _locations;
 		map<int, string> _error_pages;
+
+		fd_set _write_fds;
+		fd_set _read_fds;
+
+		int _count_requests;
 	public:
 		Server(int);
+		Server(int, string, string, map<int, string>, map<string, map<string, string> >);
+		Server(int, int, string, string, map<int, string>, map<string, map<string, string> >);
 		Server &operator=(Server const & ref);
 		~Server();
 		int getSocket() { return _socket; };
@@ -40,6 +49,16 @@ class Server
 		void setRoot(string root) {_root = root;};
 		void setErrorPages(map<int, string> pages) {_error_pages = pages;};
 		void setLocations(map<string, map<string, string> > loc) {_locations = loc;};
+		void setPort(int);
+
+		fd_set getWriteFD() { return _write_fds;};
+		fd_set getReadFD() { return _read_fds;};
+		fd_set *getWriteFD_ptr() { return &_write_fds;};
+		fd_set *getReadFD_ptr() { return &_read_fds;};
+
+		void run(map<int, Worker *>, int);
+		void do_s(int);
+		void error(const char *);
 };
 
 #endif
