@@ -36,8 +36,8 @@ void Headers::operator+=(string send)
 		{
 			string type(line, 0, line.find('/') - 1);
 			head.insert(make_pair("Request-Type", type));
-			string loc(line, type.size() + 1, line.find("HTTP") - 6);
-			head.insert(make_pair("Location", "default" + loc));
+			string loc(line, type.size() + 1, line.find("HTTP") - 5);
+			head.insert(make_pair("Location", loc));
 			string ver(line, line.find_last_of('/') + 1);
 			head.insert(make_pair("HTTP-Ver", ver));
 		}
@@ -106,6 +106,6 @@ string Headers::return_response_header(int status, Headers header, size_t size_c
 	// If method is GET/HEAD, its gonna fill this line
 	if (size_content > 0)
 		response += "Content-Length: " + std::to_string(size_content) + "\n\r";
-	response += "Content-Language: fr-FR\n\r";
+	response += "Content-Language: fr-FR\n\r\n\r";
 	return (response);
 }

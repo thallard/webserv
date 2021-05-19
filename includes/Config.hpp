@@ -14,6 +14,7 @@ typedef struct _s_preServ
 	string root;
 	map<int, string> err;
 	map<string, map<string, string> > loc;
+	string index;
 } 			_t_preServ;
 
 class Worker;

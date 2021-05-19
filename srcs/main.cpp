@@ -96,6 +96,8 @@ int main(int argc, char *argv[])
 	// FD_SET(server.getSocket(), &read_fds);
 
 	// Timeout
+
+	//////////////// NEW ! -- fork for each server
 	for(size_t i = 0; i < config.getServers().size(); i++)
 	{
 		if(!fork())
@@ -103,6 +105,7 @@ int main(int argc, char *argv[])
 		else
 			cout << "Server [\e[" << 92 + i  << ";1m" << i << "\e[0m] launched !" << endl;
 	}
+	
 	while (1);
 ///TEST
 

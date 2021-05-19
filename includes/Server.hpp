@@ -5,6 +5,12 @@
 
 using namespace std;
 
+typedef struct s_file
+{
+	string content;
+	size_t size;
+}				t_file;
+
 class Server
 {		
 	public:
@@ -20,6 +26,7 @@ class Server
 
 		string _name;
 		string _root;
+		string _index;
 
 		map<string, map<string, string> > _locations;
 		map<int, string> _error_pages;
@@ -31,7 +38,7 @@ class Server
 	public:
 		Server(int);
 		Server(int, string, string, map<int, string>, map<string, map<string, string> >);
-		Server(int, int, string, string, map<int, string>, map<string, map<string, string> >);
+		Server(int, int, string, string, map<int, string>, map<string, map<string, string> >, string);
 		Server &operator=(Server const & ref);
 		~Server();
 		int getSocket() { return _socket; };
@@ -49,7 +56,6 @@ class Server
 		void setRoot(string root) {_root = root;};
 		void setErrorPages(map<int, string> pages) {_error_pages = pages;};
 		void setLocations(map<string, map<string, string> > loc) {_locations = loc;};
-		void setPort(int);
 
 		fd_set getWriteFD() { return _write_fds;};
 		fd_set getReadFD() { return _read_fds;};
@@ -57,8 +63,16 @@ class Server
 		fd_set *getReadFD_ptr() { return &_read_fds;};
 
 		void run(map<int, Worker *>, int);
-		void do_s(int);
+	private:
+		void handle_request(int);
 		void error(const char *);
+		void log(string);
+
+		string GET(map<string, string>);
+		string POST(map<string, string>);
+		string HEAD(map<string, string>);
+
+		t_file getFile(string);
 };
 
 #endif

@@ -4,7 +4,6 @@ Server::Server(int port)
 {
 	//Socket()
 	_socket = socket(AF_INET, SOCK_STREAM, 0);
-	cout << "created socket " << _socket << ":" << port << endl;
 	if (_socket < 0)
 		perror("ERROR opening socket");
 
@@ -30,10 +29,9 @@ Server::Server(int port)
 	FD_SET(_socket, &_read_fds);
 }
 
-Server::Server(int id, int port, string name, string root, map<int, string> err_pages, map<string, map<string, string> > location)
+Server::Server(int id, int port, string name, string root, map<int, string> err_pages, map<string, map<string, string> > location, string index)
 {
 	_socket = socket(AF_INET, SOCK_STREAM, 0);
-	cout << "created socket " << _socket << ":" << port << endl;
 	if (_socket < 0)
 		perror("ERROR opening socket");
 
@@ -63,6 +61,7 @@ Server::Server(int id, int port, string name, string root, map<int, string> err_
 	_root = root;
 	_error_pages = err_pages;
 	_locations = location;
+	_index = index;
 }
 
 Server::Server(int id, string name, string root, map<int, string> err_pages, map<string, map<string, string> > location)
@@ -98,34 +97,6 @@ Server &Server::operator=(Server const & ref)
 	return *this;
 }
 
-void Server::setPort(int port)
-{
-	_socket = socket(AF_INET, SOCK_STREAM, 0);
-	cout << "created socket " << _socket << ":" << port << endl;
-	if (_socket < 0)
-		perror("ERROR opening socket");
-
-	//IOCTL()
-	const int opt = 1;
-	setsockopt(_socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
-
-	//BIND()
-	bzero((char *)&_serv_addr, sizeof(_serv_addr));
-	_serv_addr.sin_family = AF_INET;
-	_serv_addr.sin_addr.s_addr = INADDR_ANY;
-	_serv_addr.sin_port = htons(port);
-	if (bind(_socket, (struct sockaddr *)&_serv_addr,
-			sizeof(_serv_addr)) < 0)
-		perror("ERROR on binding");
-
-	listen(_socket, 4096);
-
-	FD_ZERO(&_write_fds);
-	FD_ZERO(&_read_fds);
-
-	FD_SET(_socket, &_write_fds);
-	FD_SET(_socket, &_read_fds);
-}
 
 void Server::run(map<int, Worker *> workers, int count)
 {
@@ -158,18 +129,73 @@ void Server::run(map<int, Worker *> workers, int count)
 			int newsockfd = accept(_socket, (struct sockaddr *)&_cli_addr, &clilen);
 			if (newsockfd < 0)
 				error("ERROR on accept");
-			do_s(newsockfd);
+			handle_request(newsockfd);
 			close(newsockfd);
 		}
 		else
-			dprintf(1, "No response pendant 10sec\n");
+			log("\e[1;96m[IDLING]\e[0m");
 	}
 }
 
 #include "Headers.hpp"
 
-void Server::do_s(int sock)
+void Server::handle_request(int sock)
 {
+	
+	string type[] = {"GET", "POST", "HEAD"};
+	string(Server::*command[])(map<string, string>) = {&Server::GET, &Server::POST, &Server::HEAD};
+	char buffer[4096];
+	bzero(buffer, 4096);
+	int n = read(sock, buffer, 4096);
+
+	if (n < 0)
+		error("Can't read the request");
+	
+	Headers request;
+
+	request += string(buffer);
+
+	string response;
+
+	map<string, string>p_request = request.last();
+	
+	string req_type = p_request.find("Request-Type")->second;
+
+	for (size_t i = 0; i <= type->size(); i++)
+	{
+		if (i == type->size())
+		{
+			response = "404"; // change with bad formated header
+			break;
+		}
+		if (!strcmp(req_type.c_str(), type[i].c_str()))
+		{
+			response = (this->*command[i])(p_request);
+			break;
+		}
+	}
+	n = write(sock, response.c_str(), strlen(response.c_str()));
+	if (n < 0)
+		error("Can't send the response");
+	// TODO: CHECK HEADER
+
+	// HANDLING REQUEST
+
+
+	
+	
+	
+	
+	
+	
+	
+	
+	//=======================================
+	
+	
+	
+	
+	/*
 	int n;
 	ifstream file("default/index.html");
 	ostringstream text;
@@ -215,11 +241,138 @@ void Server::do_s(int sock)
 		// dprintf(1, "combien tu as print mon coquin ? %d %lu\n", n, strlen(response.c_str()));
 	// cout << "HEADER RENVOYEE:\n" << response << "\e[0m" << endl;
 	if (n < 0)
-		error("ERROR writing to socket_nbet");
+		error("ERROR writing to socket_nbet");*/
 }
 
 void Server::error(const char *s)
 {
 	perror(s);
 	exit(1);
+}
+
+string Server::POST(map<string, string> header)
+{
+	t_file file = getFile(header.find("Location")->second);
+
+	return file.content;
+}
+string Server::HEAD(map<string, string> header)
+{
+	t_file file = getFile(header.find("Location")->second);
+
+	return file.content;
+}
+string Server::GET(map<string, string> header)
+{
+	t_file file = getFile(header.find("Location")->second);
+	Headers tmp;
+	string resp;
+	size_t pos;
+	if (file.content == "NOT FOUND" && file.size == 0)
+	{
+		int fd;
+		char c;
+		file.content.clear();
+		fd = open("default/error.html", O_RDONLY | O_NONBLOCK);
+		while(read(fd, &c, 1))
+			file.content.push_back(c);
+		while ((pos = file.content.find("_CODE_")) != file.content.npos)
+			file.content.replace(file.content.find("_CODE_"), 6, "404");
+		while ((pos = file.content.find("_MSG_")) != file.content.npos)
+			file.content.replace(file.content.find("_MSG_"), 5, "Not Found");
+		file.size = file.content.size();
+		resp = tmp.return_response_header(404, tmp, file.size);
+	}
+	else
+		resp = tmp.return_response_header(200, tmp, file.size);
+
+	resp += file.content;
+	return resp;
+}
+
+t_file Server::getFile(string loc)
+{
+	log("\e[1;93m[GET -> " + loc + "]\e[0m");
+
+	map<string, map<string, string> >::iterator it = _locations.begin();
+
+	size_t pos;
+	string parsed = "";
+
+// FIND IF THE START OF THE URL IS PRESENT IN CONFIG
+
+	for(size_t i = 0; i < _locations.size(); i++)
+	{
+			pos = loc.rfind(it->first, 0);
+			if (pos != loc.npos)
+			{
+				// SKIP BECAUSE IT MATCH IF IN CONF WE HAVE / && /foo AND GO TO / EVEN IF THE URL CONTAINS /foo
+				if (_locations.size() > 1 && it->first == "/")
+				{
+					it++;
+					continue;
+				}
+				loc.replace(pos, it->first.size() , it->second.find("root")->second);
+				parsed = loc;
+				break;
+			}
+		it++;
+	}
+	// REGET THE / LOCATION IF NO OTHER HAS BEEN FOUND
+	if (parsed == "" && _locations.count("/"))
+	{
+		loc.replace(0, 1, _locations.find("/")->second.find("root")->second);
+		parsed = loc;
+	}
+
+// IF NOT, GET THE DEFAULT ROOT
+	if (parsed == "")
+		parsed = _root + loc;
+
+	//cout << "Final Location: " << parsed << endl;
+
+	int fd;
+	fd = open(parsed.c_str(), O_RDONLY | O_DIRECTORY | O_NONBLOCK);
+	if (fd != -1)
+	{
+		if (pos != loc.npos)
+			parsed += it->second.find("index")->second;
+		else
+			parsed += _index;
+	}
+	close(fd);
+
+	//cout << "Final Location after directory: " << parsed << endl;
+
+	fd = open(parsed.c_str(), O_RDONLY | O_NONBLOCK);
+	if (fd < 3)
+	{
+		close(fd);
+		t_file not_found = {"NOT FOUND", 0};
+		return not_found;
+	}
+	string page;
+	int ret;
+	char c;
+	while ((ret = read(fd, &c, 1)) > 0)
+		page.push_back(c);
+	close(fd);
+	t_file file = {page, page.size()};
+	return file;
+}
+
+void Server::log(string s)
+{
+	struct timeval tv;
+	time_t t;
+	struct tm *info;
+	char buffer[64];
+
+	gettimeofday(&tv, NULL);
+	t = tv.tv_sec;
+
+	info = localtime(&t);
+	strftime(buffer, sizeof buffer, "[%c]", info);
+
+	cout << "\e[1;" << 92 + _id << "m[SERVER " << _id << "]\e[0m" << s << " \e[1;90m" << buffer << "\e[0m"<< endl;
 }

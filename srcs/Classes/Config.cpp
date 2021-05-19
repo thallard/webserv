@@ -114,7 +114,7 @@ pair<string, map<string, string> > parseLocation(int fd, int *numb, string path,
 			else
 			{
 				params.insert(make_pair(get_key(line), get_val(line)));
-				cout << "\e[97mlocation params registered: " << line << "\e[0m" << endl;
+				//DEBUG cout << "\e[97mlocation params registered: " << line << "\e[0m" << endl;
 				line.clear();
 			}
 		}
@@ -124,6 +124,8 @@ pair<string, map<string, string> > parseLocation(int fd, int *numb, string path,
 		cout << "\e[91mmissing '\e[1;91m}\e[0;91m' in \e[1;91m" << path<< ":" << n << "\e[0m" << endl;
 		exit(1);
 	}
+	if (!params.count("index"))
+		params.insert(make_pair("index", "index.html"));
 	return make_pair(loc, params);
 }
 
@@ -234,7 +236,8 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 	char c;
 
 	string name = "default_server";
-	string root = "default/index.html";
+	string root = "./default/";
+	string index = "index.html";
 
 	map<int, string> error_pages;
 	map<string, map<string, string> > locations;
@@ -242,7 +245,7 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 	error_pages.insert(make_pair(404, "default/error.html"));
 	error_pages.insert(make_pair(405, "default/error.html"));
 
-	string possible[] = {"listen", "server_name", "root", "error_pages", "location"};
+	string possible[] = {"listen", "server_name", "root", "error_pages", "location", "index"};
 
 	line.clear();
 	while ((ret = read(fd, &c, 1)) > 0)
@@ -287,9 +290,9 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 				line.clear();
 				continue;
 			}
-			for (int i = 0; i < 6 /*replace by 4 */; i++)
+			for (int i = 0; i < 7 /*replace by 4 */; i++)
 			{
-				if (i == 5)
+				if (i == 6)
 				{
 					cout << "\e[91m[\e[1;39m" << get_key(line) << "\e[91m] is an unexcepted identifier in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
 					exit(1);
@@ -323,13 +326,15 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 						locations.insert(parseLocation(fd, &n, path, line));
 						i = 6;
 						break;
+					case 5:
+						index = get_val(line);
 					default:
 						break;
 					}
 				}
 			}
 		}
-		cout << "\e[94mdata server registered: " << line << "\e[0m" <<endl;
+	//DEBUG	cout << "\e[94mdata server registered: " << line << "\e[0m" <<endl;
 		line.clear();
 	}
 
@@ -341,7 +346,7 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 	}
 
 	*numb = n;
-	_t_preServ preServ = {_pre_Serv.size(), port, name, root, error_pages, locations};
+	_t_preServ preServ = {_pre_Serv.size(), port, name, root, error_pages, locations, index};
 
 	_pre_Serv.push_back(preServ);
 }
@@ -418,7 +423,7 @@ Config::Config(string path)
 				/*else
 					cout << "|" << line << "| =/= |" << possible[i] << "|"<<endl;*/
 			}
-			cout << "\e[92mOK for :" << line << "\e[0m" << endl;
+			//DEBUG cout << "\e[92mOK for :" << line << "\e[0m" << endl;
 			line.clear();
 		}
 	}
@@ -426,7 +431,7 @@ Config::Config(string path)
 
 	close(fd);
 	for (size_t j = 0; j < _pre_Serv.size(); j++)
-		_servers.push_back(new Server(_pre_Serv[j].id, _pre_Serv[j].port, _pre_Serv[j].name, _pre_Serv[j].root, _pre_Serv[j].err, _pre_Serv[j].loc));
+		_servers.push_back(new Server(_pre_Serv[j].id, _pre_Serv[j].port, _pre_Serv[j].name, _pre_Serv[j].root, _pre_Serv[j].err, _pre_Serv[j].loc, _pre_Serv[j].index));
 	for (int i = 0; i < _count_workers; i++)
 	{
 		Worker *worker = new Worker(i);
