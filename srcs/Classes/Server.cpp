@@ -85,6 +85,11 @@ Server &Server::operator=(Server const & ref)
 
 	_locations = ref._locations;
 	_error_pages = ref._error_pages;
+	
+	
+	_index = ref.index;
+	_locations_methods = ref.methods;
+	_allowed = ref.allowed;
 
 
 	return *this;
@@ -315,7 +320,7 @@ t_file Server::getFile(string loc)
 			pos = loc.rfind(it->first, 0);
 			if (pos != loc.npos)
 			{
-				// SKIP BECAUSE IT MATCH IF IN CONF WE HAVE / && /foo AND GO TO / EVEN IF THE URL CONTAINS /foo
+				// SKIP BECAUSE IT MATCH IF IN CONF WE HAVE location: / && location: /foo IT GOES TO / EVEN IF THE URL CONTAINS /foo
 				if (_locations.size() > 1 && it->first == "/")
 				{
 					it++;
@@ -329,7 +334,7 @@ t_file Server::getFile(string loc)
 			}
 		it++;
 	}
-	// REGET THE / LOCATION IF NO OTHER HAS BEEN FOUND
+	// RE-GET THE / LOCATION IF NO OTHER HAS BEEN FOUND
 	if (parsed == "" && _locations.count("/"))
 	{
 		if (_locations.find("/")->second.count("root"))
