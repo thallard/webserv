@@ -29,7 +29,10 @@ class Server
 		string _index;
 
 		map<string, map<string, string> > _locations;
+		map<string, vector<string> > _locations_methods;
 		map<int, string> _error_pages;
+
+		vector<string> _allowed;
 
 		fd_set _write_fds;
 		fd_set _read_fds;
@@ -37,8 +40,7 @@ class Server
 		int _count_requests;
 	public:
 		Server(int);
-		Server(int, string, string, map<int, string>, map<string, map<string, string> >);
-		Server(int, int, string, string, map<int, string>, map<string, map<string, string> >, string);
+		Server(_t_preServ);
 		Server &operator=(Server const & ref);
 		~Server();
 		int getSocket() { return _socket; };
@@ -71,8 +73,11 @@ class Server
 		string GET(map<string, string>);
 		string POST(map<string, string>);
 		string HEAD(map<string, string>);
+		string SEND_ERROR(int , const char *);
 
 		t_file getFile(string);
+
+		bool check_methods(map<string, string>);
 };
 
 #endif

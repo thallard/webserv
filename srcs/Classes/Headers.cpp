@@ -83,6 +83,12 @@ string Headers::return_response_header(int status, Headers header, size_t size_c
 	case STATUS_NOT_FOUND:
 		response = "HTTP/1.1 404 Not Found\n\r";
 		break;
+	case STATUS_METHOD_NOT_ALLOWED:
+		response = "HTTP/1.1 405 Method Not Allowed\n\r";
+		break;
+	case STATUS_TEAPOT:
+		response = "HTTP/1.1 418 I'm a teapot\n\r";
+		break;
 	default:
 		break;
 	}

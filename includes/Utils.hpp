@@ -6,7 +6,7 @@
 /*   By: thjacque <thjacque@student.42lyon.fr>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/05/10 14:51:19 by thallard          #+#    #+#             */
-/*   Updated: 2021/05/17 14:27:39 by thjacque         ###   ########lyon.fr   */
+/*   Updated: 2021/05/20 13:23:57 by thjacque         ###   ########lyon.fr   */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,13 +43,28 @@ using namespace std;
 #define STATUS_OK 200
 #define STATUS_NO_CONTENT 204
 
+#define STATUS_METHOD_NOT_ALLOWED 405
 #define STATUS_NOT_FOUND 404
+#define STATUS_TEAPOT 418
 
 #define DEFAULT_PATH "default/default.conf"
 
 #define MAX_WORKERS 50 
 
 #define DEFAULT_PORT 8080
+
+typedef struct _s_preServ
+{
+	int id;
+	int port;
+	string name;
+	string root;
+	map<int, string> err;
+	map<string, map<string, string> > loc;
+	string index;
+	map<string, vector<string> > methods;
+	vector<string> allowed;
+} 			_t_preServ;
 
 int dispatcher_type_requests(map<string, string> request);
 void *main_loop(void * arg);

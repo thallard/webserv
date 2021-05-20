@@ -62,6 +62,115 @@ bool is_not_whitespace(string line)
 
 // PARSING INDEPENDANT ================================================================================
 
+pair<string, vector<string> > Config::parseMethod(map<string, string> args, string loc, string path, int n)
+{
+	vector<string> methods;
+
+	methods.push_back("GET");
+	methods.push_back("HEAD");
+	if (!args.count("allow_methods"))
+		return make_pair(loc, methods);
+
+	cout << "go" << endl;
+
+	string list[] = {"GET", "HEAD", "POST", "PUT", "DELETE"};
+
+	string parsed = args.find("allow_methods")->second;
+	string tmp;
+
+
+	for (string::iterator it = parsed.begin(); it != parsed.end(); it++)
+	{
+		if ((*it >= 9 && *it <= 13) || *it == ' ' || *it == ',')
+		{
+			if (!tmp.size())
+				continue;
+			for (size_t i = 0; i < 7 ; i++)
+			{
+				if (i == 6)
+				{
+					cout << "\e[91m[\e[1;39m" << tmp << "\e[91m] is an unexcepted method in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+					exit(1);
+				}
+				if (tmp == list[i])
+					break;
+			}
+			if (!(tmp == "GET" || tmp == "HEAD"))
+				methods.push_back(tmp);
+			tmp.clear();
+		}
+		else
+			tmp.push_back(*it);
+	}
+
+	for (size_t i = 0; i < 7 ; i++)
+	{
+		if (i == 6)
+		{
+			cout << "\e[91m[\e[1;39m" << tmp << "\e[91m] is an unexcepted method in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+			exit(1);
+		}
+		if (tmp == list[i])
+			break;
+	}
+	if (!(tmp == "GET" || tmp == "HEAD"))
+		methods.push_back(tmp);
+	tmp.clear();
+	return make_pair(loc, methods);
+}
+
+vector<string> Config::parseMethod(string parsed, string path, int n)
+{
+	vector<string> methods;
+
+	methods.push_back("GET");
+	methods.push_back("HEAD");
+
+	string list[] = {"GET", "HEAD", "POST", "PUT", "DELETE"};
+
+	string tmp;
+
+
+	for (string::iterator it = parsed.begin(); it != parsed.end(); it++)
+	{
+		if ((*it >= 9 && *it <= 13) || *it == ' ' || *it == ',')
+		{
+			if (!tmp.size())
+				continue;
+			for (size_t i = 0; i < 7 ; i++)
+			{
+				if (i == 6)
+				{
+					cout << "\e[91m[\e[1;39m" << tmp << "\e[91m] is an unexcepted method in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+					exit(1);
+				}
+				if (tmp == list[i])
+					break;
+			}
+			if (!(tmp == "GET" || tmp == "HEAD"))
+				methods.push_back(tmp);
+			tmp.clear();
+		}
+		else
+			tmp.push_back(*it);
+	}
+
+	for (size_t i = 0; i < 7 ; i++)
+	{
+		if (i == 6)
+		{
+			cout << "\e[91m[\e[1;39m" << tmp << "\e[91m] is an unexcepted method in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+			exit(1);
+		}
+		if (tmp == list[i])
+			break;
+	}
+	if (!(tmp == "GET" || tmp == "HEAD"))
+		methods.push_back(tmp);
+	tmp.clear();
+	return methods;
+}
+
 pair<string, map<string, string> > parseLocation(int fd, int *numb, string path, string line)
 {
 	string loc = get_val(line);
@@ -208,7 +317,7 @@ void Config::setWorkers(string line)
 	{
 		if (!isdigit(*it))
 		{
-			cout << "\e[1;91mInvalid charactere in workers numbers" << endl;
+			cout << "\e[1;91mInvalid character in workers numbers" << endl;
 			exit(1);
 		}
 		nb = (nb * 10) + (*it - '0');
@@ -241,11 +350,13 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 
 	map<int, string> error_pages;
 	map<string, map<string, string> > locations;
+	map<string, vector<string> > methods;
+	vector<string> allowed;
 	
 	error_pages.insert(make_pair(404, "default/error.html"));
 	error_pages.insert(make_pair(405, "default/error.html"));
 
-	string possible[] = {"listen", "server_name", "root", "error_pages", "location", "index"};
+	string possible[] = {"listen", "server_name", "root", "error_pages", "location", "index", "allow_methods"};
 
 	line.clear();
 	while ((ret = read(fd, &c, 1)) > 0)
@@ -290,9 +401,9 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 				line.clear();
 				continue;
 			}
-			for (int i = 0; i < 7 /*replace by 4 */; i++)
+			for (int i = 0; i < 8 /*replace by 4 */; i++)
 			{
-				if (i == 6)
+				if (i == 7)
 				{
 					cout << "\e[91m[\e[1;39m" << get_key(line) << "\e[91m] is an unexcepted identifier in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
 					exit(1);
@@ -308,26 +419,33 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 							cout << "\e[91m[\e[1;39m" << line << "\e[91m] invalid port in \e[1;91m" << path << ":" << n << "\e[0m"<< endl;
 							exit(1);
 						}
-						i = 6;
+						i = 7;
 						break;
 					case 1:
 						name = get_val(line);
-						i = 6;
+						i = 7;
 						break;
 					case 2:
 						root = get_val(line);
-						i = 6;
+						i = 7;
 						break;
 					case 3:
 						error_pages = parseErrorPages(fd,  &n, error_pages, path);
-						i = 6;
+						i = 7;
 						break;
 					case 4:
 						locations.insert(parseLocation(fd, &n, path, line));
-						i = 6;
+						methods.insert(parseMethod(locations.find(get_val(line))->second, get_val(line), path, n));
+						i = 7;
 						break;
 					case 5:
 						index = get_val(line);
+						i = 7;
+						break;
+					case 6:
+						allowed = parseMethod(get_val(line), path, n);
+						i = 7;
+						break;
 					default:
 						break;
 					}
@@ -344,9 +462,13 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 		cout << "\e[91mmissing '\e[1;91m}\e[0;91m' in \e[1;91m" << path<< ":" << n << "\e[0m" << endl;
 		exit(1);
 	}
-
+	if (!allowed.size())
+	{
+		allowed.push_back("GET");
+		allowed.push_back("HEAD");
+	}
 	*numb = n;
-	_t_preServ preServ = {_pre_Serv.size(), port, name, root, error_pages, locations, index};
+	_t_preServ preServ = {_pre_Serv.size(), port, name, root, error_pages, locations, index, methods, allowed};
 
 	_pre_Serv.push_back(preServ);
 }
@@ -431,7 +553,7 @@ Config::Config(string path)
 
 	close(fd);
 	for (size_t j = 0; j < _pre_Serv.size(); j++)
-		_servers.push_back(new Server(_pre_Serv[j].id, _pre_Serv[j].port, _pre_Serv[j].name, _pre_Serv[j].root, _pre_Serv[j].err, _pre_Serv[j].loc, _pre_Serv[j].index));
+		_servers.push_back(new Server(_pre_Serv[j]));
 	for (int i = 0; i < _count_workers; i++)
 	{
 		Worker *worker = new Worker(i);

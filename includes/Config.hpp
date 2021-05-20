@@ -6,16 +6,7 @@
 #include "Worker.hpp"
 using namespace std;
 
-typedef struct _s_preServ
-{
-	int id;
-	int port;
-	string name;
-	string root;
-	map<int, string> err;
-	map<string, map<string, string> > loc;
-	string index;
-} 			_t_preServ;
+
 
 class Worker;
 class Config
@@ -29,6 +20,8 @@ class Config
 		Config();
 		void setWorkers(string);
 		void parseServer(int, string, string, int *);
+		pair<string, vector<string> > parseMethod(map<string, string>, string, string, int);
+		vector<string> parseMethod(string, string, int);
 	public:
 		//Server *test;
 		Config(string);

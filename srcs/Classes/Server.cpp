@@ -29,7 +29,7 @@ Server::Server(int port)
 	FD_SET(_socket, &_read_fds);
 }
 
-Server::Server(int id, int port, string name, string root, map<int, string> err_pages, map<string, map<string, string> > location, string index)
+Server::Server(_t_preServ pre)
 {
 	_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (_socket < 0)
@@ -43,7 +43,7 @@ Server::Server(int id, int port, string name, string root, map<int, string> err_
 	bzero((char *)&_serv_addr, sizeof(_serv_addr));
 	_serv_addr.sin_family = AF_INET;
 	_serv_addr.sin_addr.s_addr = INADDR_ANY;
-	_serv_addr.sin_port = htons(port);
+	_serv_addr.sin_port = htons(pre.port);
 	if (bind(_socket, (struct sockaddr *)&_serv_addr,
 			sizeof(_serv_addr)) < 0)
 		perror("ERROR on binding");
@@ -56,21 +56,14 @@ Server::Server(int id, int port, string name, string root, map<int, string> err_
 	FD_SET(_socket, &_write_fds);
 	FD_SET(_socket, &_read_fds);
 
-	_id = id;
-	_name = name;
-	_root = root;
-	_error_pages = err_pages;
-	_locations = location;
-	_index = index;
-}
-
-Server::Server(int id, string name, string root, map<int, string> err_pages, map<string, map<string, string> > location)
-{
-	_id = id;
-	_name = name;
-	_root = root;
-	_error_pages = err_pages;
-	_locations = location;
+	_id = pre.id;
+	_name = pre.name;
+	_root = pre.root;
+	_error_pages = pre.err;
+	_locations = pre.loc;
+	_index = pre.index;
+	_locations_methods = pre.methods;
+	_allowed = pre.allowed;
 }
 
 Server::~Server()
@@ -170,13 +163,18 @@ void Server::handle_request(int sock)
 		}
 		if (!strcmp(req_type.c_str(), type[i].c_str()))
 		{
-			response = (this->*command[i])(p_request);
+			if (check_methods(p_request))
+				response = (this->*command[i])(p_request);
+			else
+				response = SEND_ERROR(STATUS_METHOD_NOT_ALLOWED, "Method Not Allowed");
 			break;
 		}
 	}
 	n = write(sock, response.c_str(), strlen(response.c_str()));
 	if (n < 0)
 		error("Can't send the response");
+
+	
 	// TODO: CHECK HEADER
 
 	// HANDLING REQUEST
@@ -250,49 +248,59 @@ void Server::error(const char *s)
 	exit(1);
 }
 
+
+//PAS FINIS
 string Server::POST(map<string, string> header)
 {
+
+	log("\e[1;93m[POST -> " + header.find("Location")->second + "]\e[0m");
+
+	Headers tmp;
+	string resp;
 	t_file file = getFile(header.find("Location")->second);
 
-	return file.content;
+	if (header.count("Content") && !header.find("Content")->second.size())
+		resp = SEND_ERROR(STATUS_NO_CONTENT, "No Content");
+	return resp;
 }
+
+// PAS FAIS
 string Server::HEAD(map<string, string> header)
 {
 	t_file file = getFile(header.find("Location")->second);
 
 	return file.content;
 }
+
+//A AMELIORER
 string Server::GET(map<string, string> header)
 {
+
+	log("\e[1;93m[GET -> " + header.find("Location")->second + "]\e[0m");
+
 	t_file file = getFile(header.find("Location")->second);
 	Headers tmp;
 	string resp;
-	size_t pos;
-	if (file.content == "NOT FOUND" && file.size == 0)
-	{
-		int fd;
-		char c;
-		file.content.clear();
-		fd = open("default/error.html", O_RDONLY | O_NONBLOCK);
-		while(read(fd, &c, 1))
-			file.content.push_back(c);
-		while ((pos = file.content.find("_CODE_")) != file.content.npos)
-			file.content.replace(file.content.find("_CODE_"), 6, "404");
-		while ((pos = file.content.find("_MSG_")) != file.content.npos)
-			file.content.replace(file.content.find("_MSG_"), 5, "Not Found");
-		file.size = file.content.size();
-		resp = tmp.return_response_header(404, tmp, file.size);
-	}
-	else
-		resp = tmp.return_response_header(200, tmp, file.size);
 
-	resp += file.content;
+cout << header.count("coffee") << endl;
+	if (file.content == "NOT FOUND" && file.size == 0)
+		resp = SEND_ERROR(STATUS_NOT_FOUND, "Not Found");
+	else if (header.count("coffee"))
+		resp = SEND_ERROR(STATUS_TEAPOT, "I'm a teapot");
+	else
+	{
+		resp = tmp.return_response_header(200, tmp, file.size);
+		resp += file.content;
+	}
+
 	return resp;
 }
 
+
+// SOUCIS: si on  location /foo/ et location /foo/bar/ dans le .conf et aue l'url est /foo/bar/, il va chopper /foo/
+// il faut donc le comparer avec tout et prendre celui avec le + de char correspondant
 t_file Server::getFile(string loc)
 {
-	log("\e[1;93m[GET -> " + loc + "]\e[0m");
 
 	map<string, map<string, string> >::iterator it = _locations.begin();
 
@@ -303,6 +311,7 @@ t_file Server::getFile(string loc)
 
 	for(size_t i = 0; i < _locations.size(); i++)
 	{
+			//rfind = find prefix (si dans l'url /foo/bar/ je trouve la location /foo/ alors pos != npos)
 			pos = loc.rfind(it->first, 0);
 			if (pos != loc.npos)
 			{
@@ -312,7 +321,9 @@ t_file Server::getFile(string loc)
 					it++;
 					continue;
 				}
-				loc.replace(pos, it->first.size() , it->second.find("root")->second);
+				//replace la location par la root de la location
+				if (it->second.count("root"))
+					loc.replace(pos, it->first.size() , it->second.find("root")->second);
 				parsed = loc;
 				break;
 			}
@@ -321,7 +332,8 @@ t_file Server::getFile(string loc)
 	// REGET THE / LOCATION IF NO OTHER HAS BEEN FOUND
 	if (parsed == "" && _locations.count("/"))
 	{
-		loc.replace(0, 1, _locations.find("/")->second.find("root")->second);
+		if (_locations.find("/")->second.count("root"))
+			loc.replace(0, 1, _locations.find("/")->second.find("root")->second);
 		parsed = loc;
 	}
 
@@ -361,6 +373,31 @@ t_file Server::getFile(string loc)
 	return file;
 }
 
+
+// Generate a default error page -- TODO: add conf errors page
+string Server::SEND_ERROR(int status, const char *msg)
+{
+	t_file file;
+	string resp;
+	Headers tmp;
+
+	char c;
+	size_t pos;
+
+	int fd = open("default/error.html", O_RDONLY | O_NONBLOCK);
+	while(read(fd, &c, 1))
+		file.content.push_back(c);
+	while ((pos = file.content.find("_CODE_")) != file.content.npos)
+		file.content.replace(file.content.find("_CODE_"), 6, to_string(status));
+	while ((pos = file.content.find("_MSG_")) != file.content.npos)
+		file.content.replace(file.content.find("_MSG_"), 5, msg);
+		file.size = file.content.size();
+	resp = tmp.return_response_header(status, tmp, file.size);
+	resp += file.content;
+	close(fd);
+	return resp;
+}
+
 void Server::log(string s)
 {
 	struct timeval tv;
@@ -375,4 +412,36 @@ void Server::log(string s)
 	strftime(buffer, sizeof buffer, "[%c]", info);
 
 	cout << "\e[1;" << 92 + _id << "m[SERVER " << _id << "]\e[0m" << s << " \e[1;90m" << buffer << "\e[0m"<< endl;
+}
+
+bool Server::check_methods(map<string, string> req)
+{
+	string methods = req.find("Request-Type")->second;
+	string loc = req.find("Location")->second;
+	map<string, map<string, string> >::iterator it = _locations.begin();
+	size_t pos;
+
+	for(size_t i = 0; i < _locations.size(); i++)
+	{
+			pos = loc.rfind(it->first, 0);
+			if (pos != loc.npos)
+			{
+				// SKIP BECAUSE IT MATCH IF IN CONF WE HAVE / && /foo AND GO TO / EVEN IF THE URL CONTAINS /foo
+				if (_locations.size() > 1 && it->first == "/")
+				{
+					it++;
+					continue;
+				}
+				vector<string> allowed = _locations_methods.find(it->first)->second;
+				for(size_t i = 0; i < allowed.size(); i++)
+					if(methods == allowed[i])
+						return true;
+				return false;
+			}
+		it++;
+	}
+	for(size_t i = 0; i < _allowed.size(); i++)
+		if(methods == _allowed[i])
+			return true;
+	return false;
 }
