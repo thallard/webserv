@@ -70,9 +70,9 @@ class Server
 		void error(const char *);
 		void log(string);
 
-		string GET(map<string, string>);
-		string POST(map<string, string>);
-		string HEAD(map<string, string>);
+		string GET(map<string, string>, int);
+		string POST(map<string, string>, int);
+		string HEAD(map<string, string>, int);
 		string SEND_ERROR(int , const char *);
 
 		t_file getFile(string);
