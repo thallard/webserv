@@ -15,7 +15,10 @@ Worker::Worker()
 	// {
 	// 	pthread_create(&thread, NULL, main_loop, this);
 	// }
+	
+
 }
+
 
 Worker::Worker(int id)
 {

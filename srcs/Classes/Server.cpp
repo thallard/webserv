@@ -17,7 +17,7 @@ Server::Server(int port)
 	_serv_addr.sin_addr.s_addr = INADDR_ANY;
 	_serv_addr.sin_port = htons(port);
 	if (bind(_socket, (struct sockaddr *)&_serv_addr,
-			sizeof(_serv_addr)) < 0)
+			 sizeof(_serv_addr)) < 0)
 		perror("ERROR on binding");
 
 	listen(_socket, 4096);
@@ -45,7 +45,7 @@ Server::Server(_t_preServ pre)
 	_serv_addr.sin_addr.s_addr = INADDR_ANY;
 	_serv_addr.sin_port = htons(pre.port);
 	if (bind(_socket, (struct sockaddr *)&_serv_addr,
-			sizeof(_serv_addr)) < 0)
+			 sizeof(_serv_addr)) < 0)
 		perror("ERROR on binding");
 
 	listen(_socket, 4096);
@@ -71,7 +71,7 @@ Server::~Server()
 	close(_socket);
 }
 
-Server &Server::operator=(Server const & ref)
+Server &Server::operator=(Server const &ref)
 {
 
 	_serv_addr = ref._serv_addr;
@@ -85,31 +85,28 @@ Server &Server::operator=(Server const & ref)
 
 	_locations = ref._locations;
 	_error_pages = ref._error_pages;
-	
-	
-	_index = ref.index;
-	_locations_methods = ref.methods;
-	_allowed = ref.allowed;
 
+	_index = ref._index;
+	_locations_methods = ref._locations_methods;
+	_allowed = ref._allowed;
 
 	return *this;
 }
-
 
 void Server::run(map<int, Worker *> workers, int count)
 {
 	struct timeval tv;
 	tv.tv_usec = 0;
-	tv.tv_sec = 10;
+	tv.tv_sec = 20;
 	_count_requests = 0;
 	(void)workers[count];
 
 	socklen_t clilen = sizeof(_cli_addr);
 
-	while(1)
+	while (1)
 	{
-		fd_set write_fds2 =  _write_fds;
-		fd_set read_fds2 =  _read_fds;
+		fd_set write_fds2 = _write_fds;
+		fd_set read_fds2 = _read_fds;
 
 		if (select(_socket + 1, &read_fds2, &write_fds2, NULL, &tv) > 0)
 		{
@@ -139,24 +136,33 @@ void Server::run(map<int, Worker *> workers, int count)
 
 void Server::handle_request(int sock)
 {
-	
+
 	string type[] = {"GET", "POST", "HEAD"};
-	string(Server::*command[])(map<string, string>) = {&Server::GET, &Server::POST, &Server::HEAD};
+	string (Server::*command[])(map<string, string>, int) = {&Server::GET, &Server::POST, &Server::HEAD};
 	char buffer[4096];
+	int nbytes_read = 0;
+	int n;
+ 
+	// Read until header until is finished
 	bzero(buffer, 4096);
-	int n = read(sock, buffer, 4096);
+	while (1)
+	{
+		n = read(sock, &buffer[nbytes_read++], 1);
+		if (n < 0)
+			error("Can't read the request");
+		if (strlen(buffer) > 4)
+			if (!strncmp(&buffer[strlen(buffer) - 4], "\r\n\r\n", 4))
+				break ;
+	}
+	// bzero(buffer, 4096);
+	// int n = read(sock, buffer, 4096);
+	cout << buffer << endl;
 
-	if (n < 0)
-		error("Can't read the request");
-	
 	Headers request;
-
 	request += string(buffer);
-
 	string response;
+	map<string, string> p_request = request.last();
 
-	map<string, string>p_request = request.last();
-	
 	string req_type = p_request.find("Request-Type")->second;
 
 	for (size_t i = 0; i <= type->size(); i++)
@@ -169,9 +175,13 @@ void Server::handle_request(int sock)
 		if (!strcmp(req_type.c_str(), type[i].c_str()))
 		{
 			if (check_methods(p_request))
-				response = (this->*command[i])(p_request);
+				response = (this->*command[i])(p_request, sock);
 			else
+			{
+				log("\e[1;93mMethod Not Allowed!\e[0m");
 				response = SEND_ERROR(STATUS_METHOD_NOT_ALLOWED, "Method Not Allowed");
+			}
+				
 			break;
 		}
 	}
@@ -179,25 +189,12 @@ void Server::handle_request(int sock)
 	if (n < 0)
 		error("Can't send the response");
 
-	
 	// TODO: CHECK HEADER
 
 	// HANDLING REQUEST
 
-
-	
-	
-	
-	
-	
-	
-	
-	
 	//=======================================
-	
-	
-	
-	
+
 	/*
 	int n;
 	ifstream file("default/index.html");
@@ -253,41 +250,41 @@ void Server::error(const char *s)
 	exit(1);
 }
 
-
 //PAS FINIS
-string Server::POST(map<string, string> header)
+string Server::POST(map<string, string> header, int socket)
 {
-
+	(void)socket;
 	log("\e[1;93m[POST -> " + header.find("Location")->second + "]\e[0m");
-
 	Headers tmp;
 	string resp;
 	t_file file = getFile(header.find("Location")->second);
 
 	if (header.count("Content") && !header.find("Content")->second.size())
 		resp = SEND_ERROR(STATUS_NO_CONTENT, "No Content");
+	
 	return resp;
 }
 
 // PAS FAIS
-string Server::HEAD(map<string, string> header)
+string Server::HEAD(map<string, string> header, int socket)
 {
+	(void)socket;
 	t_file file = getFile(header.find("Location")->second);
 
 	return file.content;
 }
 
 //A AMELIORER
-string Server::GET(map<string, string> header)
+string Server::GET(map<string, string> header, int socket)
 {
-
+	(void)socket;
 	log("\e[1;93m[GET -> " + header.find("Location")->second + "]\e[0m");
 
 	t_file file = getFile(header.find("Location")->second);
 	Headers tmp;
 	string resp;
 
-cout << header.count("coffee") << endl;
+	cout << header.count("coffee") << endl;
 	if (file.content == "NOT FOUND" && file.size == 0)
 		resp = SEND_ERROR(STATUS_NOT_FOUND, "Not Found");
 	else if (header.count("coffee"))
@@ -301,7 +298,6 @@ cout << header.count("coffee") << endl;
 	return resp;
 }
 
-
 // SOUCIS: si on  location /foo/ et location /foo/bar/ dans le .conf et aue l'url est /foo/bar/, il va chopper /foo/
 // il faut donc le comparer avec tout et prendre celui avec le + de char correspondant
 t_file Server::getFile(string loc)
@@ -312,26 +308,26 @@ t_file Server::getFile(string loc)
 	size_t pos;
 	string parsed = "";
 
-// FIND IF THE START OF THE URL IS PRESENT IN CONFIG
+	// FIND IF THE START OF THE URL IS PRESENT IN CONFIG
 
-	for(size_t i = 0; i < _locations.size(); i++)
+	for (size_t i = 0; i < _locations.size(); i++)
 	{
-			//rfind = find prefix (si dans l'url /foo/bar/ je trouve la location /foo/ alors pos != npos)
-			pos = loc.rfind(it->first, 0);
-			if (pos != loc.npos)
+		//rfind = find prefix (si dans l'url /foo/bar/ je trouve la location /foo/ alors pos != npos)
+		pos = loc.rfind(it->first, 0);
+		if (pos != loc.npos)
+		{
+			// SKIP BECAUSE IT MATCH IF IN CONF WE HAVE location: / && location: /foo IT GOES TO / EVEN IF THE URL CONTAINS /foo
+			if (_locations.size() > 1 && it->first == "/")
 			{
-				// SKIP BECAUSE IT MATCH IF IN CONF WE HAVE location: / && location: /foo IT GOES TO / EVEN IF THE URL CONTAINS /foo
-				if (_locations.size() > 1 && it->first == "/")
-				{
-					it++;
-					continue;
-				}
-				//replace la location par la root de la location
-				if (it->second.count("root"))
-					loc.replace(pos, it->first.size() , it->second.find("root")->second);
-				parsed = loc;
-				break;
+				it++;
+				continue;
 			}
+			//replace la location par la root de la location
+			if (it->second.count("root"))
+				loc.replace(pos, it->first.size(), it->second.find("root")->second);
+			parsed = loc;
+			break;
+		}
 		it++;
 	}
 	// RE-GET THE / LOCATION IF NO OTHER HAS BEEN FOUND
@@ -342,7 +338,7 @@ t_file Server::getFile(string loc)
 		parsed = loc;
 	}
 
-// IF NOT, GET THE DEFAULT ROOT
+	// IF NOT, GET THE DEFAULT ROOT
 	if (parsed == "")
 		parsed = _root + loc;
 
@@ -378,7 +374,6 @@ t_file Server::getFile(string loc)
 	return file;
 }
 
-
 // Generate a default error page -- TODO: add conf errors page
 string Server::SEND_ERROR(int status, const char *msg)
 {
@@ -390,13 +385,13 @@ string Server::SEND_ERROR(int status, const char *msg)
 	size_t pos;
 
 	int fd = open("default/error.html", O_RDONLY | O_NONBLOCK);
-	while(read(fd, &c, 1))
+	while (read(fd, &c, 1))
 		file.content.push_back(c);
 	while ((pos = file.content.find("_CODE_")) != file.content.npos)
 		file.content.replace(file.content.find("_CODE_"), 6, to_string(status));
 	while ((pos = file.content.find("_MSG_")) != file.content.npos)
 		file.content.replace(file.content.find("_MSG_"), 5, msg);
-		file.size = file.content.size();
+	file.size = file.content.size();
 	resp = tmp.return_response_header(status, tmp, file.size);
 	resp += file.content;
 	close(fd);
@@ -416,7 +411,7 @@ void Server::log(string s)
 	info = localtime(&t);
 	strftime(buffer, sizeof buffer, "[%c]", info);
 
-	cout << "\e[1;" << 92 + _id << "m[SERVER " << _id << "]\e[0m" << s << " \e[1;90m" << buffer << "\e[0m"<< endl;
+	cout << "\e[1;" << 92 + _id << "m[SERVER " << _id << "]\e[0m" << s << " \e[1;90m" << buffer << "\e[0m" << endl;
 }
 
 bool Server::check_methods(map<string, string> req)
@@ -426,27 +421,27 @@ bool Server::check_methods(map<string, string> req)
 	map<string, map<string, string> >::iterator it = _locations.begin();
 	size_t pos;
 
-	for(size_t i = 0; i < _locations.size(); i++)
+	for (size_t i = 0; i < _locations.size(); i++)
 	{
-			pos = loc.rfind(it->first, 0);
-			if (pos != loc.npos)
+		pos = loc.rfind(it->first, 0);
+		if (pos != loc.npos)
+		{
+			// SKIP BECAUSE IT MATCH IF IN CONF WE HAVE / && /foo AND GO TO / EVEN IF THE URL CONTAINS /foo
+			if (_locations.size() > 1 && it->first == "/")
 			{
-				// SKIP BECAUSE IT MATCH IF IN CONF WE HAVE / && /foo AND GO TO / EVEN IF THE URL CONTAINS /foo
-				if (_locations.size() > 1 && it->first == "/")
-				{
-					it++;
-					continue;
-				}
-				vector<string> allowed = _locations_methods.find(it->first)->second;
-				for(size_t i = 0; i < allowed.size(); i++)
-					if(methods == allowed[i])
-						return true;
-				return false;
+				it++;
+				continue;
 			}
+			vector<string> allowed = _locations_methods.find(it->first)->second;
+			for (size_t i = 0; i < allowed.size(); i++)
+				if (methods == allowed[i])
+					return true;
+			return false;
+		}
 		it++;
 	}
-	for(size_t i = 0; i < _allowed.size(); i++)
-		if(methods == _allowed[i])
+	for (size_t i = 0; i < _allowed.size(); i++)
+		if (methods == _allowed[i])
 			return true;
 	return false;
 }
