@@ -2,6 +2,7 @@
 #define SERVER_HPP
 #include "Utils.hpp"
 #include "Worker.hpp"
+#include "Headers.hpp"
 
 using namespace std;
 

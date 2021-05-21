@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include "Utils.hpp"
 
 Server::Server(int port)
 {
@@ -132,7 +133,7 @@ void Server::run(map<int, Worker *> workers, int count)
 	}
 }
 
-#include "Headers.hpp"
+
 
 void Server::handle_request(int sock)
 {
@@ -154,9 +155,10 @@ void Server::handle_request(int sock)
 			if (!strncmp(&buffer[strlen(buffer) - 4], "\r\n\r\n", 4))
 				break ;
 	}
+	
 	// bzero(buffer, 4096);
 	// int n = read(sock, buffer, 4096);
-	cout << buffer << endl;
+	// cout << buffer << endl;
 
 	Headers request;
 	request += string(buffer);
@@ -253,15 +255,58 @@ void Server::error(const char *s)
 //PAS FINIS
 string Server::POST(map<string, string> header, int socket)
 {
-	(void)socket;
-	log("\e[1;93m[POST -> " + header.find("Location")->second + "]\e[0m");
-	Headers tmp;
-	string resp;
-	t_file file = getFile(header.find("Location")->second);
 
+	Headers tmp;
+	string resp, path = "./default" + header.find("Location")->second, content;
+	// int nbytes_read = 1, i = 0;
+	char content_char[1000];
+	bzero(content_char, 1000);
+	// Get the whole content from the header
+	int i = 0, nbytes_read = 1;
+	cout << header.find("Content-Length")->second << endl;
+	while (nbytes_read > 0)
+	{
+		cout << "1 : i = " << i << " et nbytes read = " << nbytes_read << endl;
+		nbytes_read = read(socket, &content_char[i++], 1);
+		if (!nbytes_read)
+			break ;
+		cout << "2 : i = " << i << " et nbytes read = " << nbytes_read << endl;
+		// i += nbytes_read;
+		cout << "ici\n" << endl;
+	}
+	
+	const char *to_print = content_char;
+	// struct stat sb;
+	log("\e[1;93m[POST -> " + header.find("Location")->second + "]\e[0m");
+	
+	t_file file = getFile(header.find("Location")->second);
+	cout << "file que je demande : " << path << endl;
 	if (header.count("Content") && !header.find("Content")->second.size())
 		resp = SEND_ERROR(STATUS_NO_CONTENT, "No Content");
-	
+
+	// A UPDATE tres rapidement des que le GetFile est patch
+	if (!strncmp(path.c_str(), "./default/file.txt", path.size()))
+	{
+		cout << " je print :" << to_print << ":\n";
+		int nb_prints, fd = open(path.c_str(), O_TRUNC | O_WRONLY, 0777);
+		istringstream iss(header.find("Content-Length")->second);
+		size_t remaining_characters, count = 0;
+		iss >> remaining_characters;
+		cout << remaining_characters << endl;
+		while (count < remaining_characters)
+		{
+			if (65535 < count)
+				nb_prints = 65535;
+			else
+			{
+				to_print = content_char + count;
+				nb_prints = strlen(content_char);
+			}
+			count += write(fd, to_print, nb_prints);
+		}
+		close(fd);
+	}
+	cout << "oui\n";
 	return resp;
 }
 
