@@ -98,7 +98,7 @@ void Server::run(map<int, Worker *> workers, int count)
 {
 	struct timeval tv;
 	tv.tv_usec = 0;
-	tv.tv_sec = 20;
+	tv.tv_sec = 60;
 	_count_requests = 0;
 	(void)workers[count];
 
@@ -111,15 +111,16 @@ void Server::run(map<int, Worker *> workers, int count)
 
 		if (select(_socket + 1, &read_fds2, &write_fds2, NULL, &tv) > 0)
 		{
-			//int i = 0;
-			/*while (1)
+			int i = 0;
+			while (1)
 			{
 				i = 0;
 				while (workers.find(i)->second->getStatus() && i < count - 1)
 					i++;
 				if (workers.find(i)->second->getStatus())
 					break;
-			}*/
+			}
+			log("\e[33mWorker 1 is now working!\e[0m");
 			if (!FD_ISSET(_socket, &_write_fds) || !FD_ISSET(_socket, &_read_fds))
 				error("ERROR non-set socket");
 			int newsockfd = accept(_socket, (struct sockaddr *)&_cli_addr, &clilen);
@@ -133,31 +134,16 @@ void Server::run(map<int, Worker *> workers, int count)
 	}
 }
 
-
-
 void Server::handle_request(int sock)
 {
 
 	string type[] = {"GET", "POST", "HEAD"};
 	string (Server::*command[])(map<string, string>, int) = {&Server::GET, &Server::POST, &Server::HEAD};
 	char buffer[4096];
-	int nbytes_read = 0;
-	int n;
- 
+
 	// Read until header until is finished
 	bzero(buffer, 4096);
-	while (1)
-	{
-		n = read(sock, &buffer[nbytes_read++], 1);
-		if (n < 0)
-			error("Can't read the request");
-		if (strlen(buffer) > 4)
-			if (!strncmp(&buffer[strlen(buffer) - 4], "\r\n\r\n", 4))
-				break ;
-	}
-	
-	// bzero(buffer, 4096);
-	// int n = read(sock, buffer, 4096);
+	int n = read(sock, buffer, 4096);
 	// cout << buffer << endl;
 
 	Headers request;
@@ -183,8 +169,7 @@ void Server::handle_request(int sock)
 				log("\e[1;93mMethod Not Allowed!\e[0m");
 				response = SEND_ERROR(STATUS_METHOD_NOT_ALLOWED, "Method Not Allowed");
 			}
-				
-			break;
+			break ;
 		}
 	}
 	n = write(sock, response.c_str(), strlen(response.c_str()));
@@ -255,58 +240,47 @@ void Server::error(const char *s)
 //PAS FINIS
 string Server::POST(map<string, string> header, int socket)
 {
-
+	(void)socket;
 	Headers tmp;
-	string resp, path = "./default" + header.find("Location")->second, content;
-	// int nbytes_read = 1, i = 0;
-	char content_char[1000];
-	bzero(content_char, 1000);
-	// Get the whole content from the header
-	int i = 0, nbytes_read = 1;
-	cout << header.find("Content-Length")->second << endl;
-	while (nbytes_read > 0)
-	{
-		cout << "1 : i = " << i << " et nbytes read = " << nbytes_read << endl;
-		nbytes_read = read(socket, &content_char[i++], 1);
-		if (!nbytes_read)
-			break ;
-		cout << "2 : i = " << i << " et nbytes read = " << nbytes_read << endl;
-		// i += nbytes_read;
-		cout << "ici\n" << endl;
-	}
-	
+	string resp, content;
+
+	// A patch des que getfile marche
+	string path = "default" + header.find("Location")->second;
+	//struct stat sb;
+
+	const char *content_char = header.find("Content")->second.c_str();
+	// cout << content_char << endl;
+
 	const char *to_print = content_char;
-	// struct stat sb;
 	log("\e[1;93m[POST -> " + header.find("Location")->second + "]\e[0m");
-	
+
 	t_file file = getFile(header.find("Location")->second);
-	cout << "file que je demande : " << path << endl;
 	if (header.count("Content") && !header.find("Content")->second.size())
 		resp = SEND_ERROR(STATUS_NO_CONTENT, "No Content");
 
 	// A UPDATE tres rapidement des que le GetFile est patch
-	if (!strncmp(path.c_str(), "./default/file.txt", path.size()))
+
+	// cout << " je print :" << to_print << ":\n";
+	int nb_prints, fd = open("default/file.txt", O_TRUNC | O_WRONLY, 0777);
+	istringstream iss(header.find("Content-Length")->second);
+	size_t remaining_characters, count = 0;
+	iss >> remaining_characters;
+	while (count < remaining_characters)
 	{
-		cout << " je print :" << to_print << ":\n";
-		int nb_prints, fd = open(path.c_str(), O_TRUNC | O_WRONLY, 0777);
-		istringstream iss(header.find("Content-Length")->second);
-		size_t remaining_characters, count = 0;
-		iss >> remaining_characters;
-		cout << remaining_characters << endl;
-		while (count < remaining_characters)
+		if (65535 < count)
+			nb_prints = 65535;
+		else
 		{
-			if (65535 < count)
-				nb_prints = 65535;
-			else
-			{
-				to_print = content_char + count;
-				nb_prints = strlen(content_char);
-			}
-			count += write(fd, to_print, nb_prints);
+			to_print = content_char + count;
+			nb_prints = strlen(content_char);
 		}
-		close(fd);
+		// cout << "nb_prints = " << nb_prints << " toPrint = " << to_print << endl;
+		count += write(fd, to_print, nb_prints);
+		// cout <<  count << endl;
 	}
-	cout << "oui\n";
+	close(fd);
+
+	resp = tmp.return_response_header(200, tmp, file.size);
 	return resp;
 }
 

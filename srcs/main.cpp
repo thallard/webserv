@@ -22,11 +22,11 @@ void *main_loop(void * arg)
 		// dprintf(1, "coucou fdp %d!\n", w->getId());
 	// w->setStatus(false);
 
-	while (1)
-	{
-		w->setStatus(false);
-		w->setStatus(true);
-	}
+	// while (1)
+	// {
+	// 	w->setStatus(false);
+	// 	w->setStatus(true);
+	// }
 	sleep(1);
 	if (!w->getStatus())
 	{

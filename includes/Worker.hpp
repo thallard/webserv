@@ -6,6 +6,7 @@ class Worker
 private:
 	pthread_t *thread;
 	bool is_available;
+	int socket;
 	int id;
 
 public:
@@ -17,6 +18,7 @@ public:
 	pthread_t *getThread();
 
 	void setStatus(bool);
+	void setSocket(int);
 };
 
 
