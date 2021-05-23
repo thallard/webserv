@@ -27,6 +27,7 @@ void *main_loop(void *arg)
 		{
 			w->getServer()->log("\e[1;96m[Worker " + to_string(w->getId()) + " is working on this server ! POST Method.]\e[0m");
 			w->setSocket(0);
+			break;
 		}
 	}
 
@@ -56,13 +57,14 @@ int main(int argc, char *argv[])
 	dprintf(1, "miaou miaou %d\n", config.getWorkers().find(0)->second->getStatus());
 
 	//////////////// NEW ! -- fork for each server
-	for (size_t i = 0; i < config.getServers().size(); i++)
-	{
-		// if(!fork())
-		config.getAt(i)->run(config.getWorkers(), config.getCountWorkers());
-		// else
-		cout << "Server [\e[" << 92 + i << ";1m" << i << "\e[0m] launched !" << endl;
-	}
+	config.run(config.getWorkers(), config.getCountWorkers());
+	// for (size_t i = 0; i < config.getServers().size(); i++)
+	// {
+	// 	// if(!fork())
+	// 	config.getAt(i)->run(config.getWorkers(), config.getCountWorkers());
+	// 	// else
+	// 	cout << "Server [\e[" << 92 + i << ";1m" << i << "\e[0m] launched !" << endl;
+	// }
 
 	// for (int i = 0; i < config.getCountWorkers(); i++)
 		

@@ -33,6 +33,9 @@ class Config
 		vector<Server *> getServers();
 		Server *getAt(int n) { return _servers[n];};
 		~Config();
+
+		void run(map<int, Worker *> & workers, int count);
+
 };
 
 #endif

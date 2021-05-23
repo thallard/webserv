@@ -59,7 +59,6 @@ bool is_not_whitespace(string line)
 	return false;
 }
 
-
 // PARSING INDEPENDANT ================================================================================
 
 pair<string, vector<string> > Config::parseMethod(map<string, string> args, string loc, string path, int n)
@@ -78,14 +77,13 @@ pair<string, vector<string> > Config::parseMethod(map<string, string> args, stri
 	string parsed = args.find("allow_methods")->second;
 	string tmp;
 
-
 	for (string::iterator it = parsed.begin(); it != parsed.end(); it++)
 	{
 		if ((*it >= 9 && *it <= 13) || *it == ' ' || *it == ',')
 		{
 			if (!tmp.size())
 				continue;
-			for (size_t i = 0; i < 7 ; i++)
+			for (size_t i = 0; i < 7; i++)
 			{
 				if (i == 6)
 				{
@@ -103,7 +101,7 @@ pair<string, vector<string> > Config::parseMethod(map<string, string> args, stri
 			tmp.push_back(*it);
 	}
 
-	for (size_t i = 0; i < 7 ; i++)
+	for (size_t i = 0; i < 7; i++)
 	{
 		if (i == 6)
 		{
@@ -130,14 +128,13 @@ vector<string> Config::parseMethod(string parsed, string path, int n)
 
 	string tmp;
 
-
 	for (string::iterator it = parsed.begin(); it != parsed.end(); it++)
 	{
 		if ((*it >= 9 && *it <= 13) || *it == ' ' || *it == ',')
 		{
 			if (!tmp.size())
 				continue;
-			for (size_t i = 0; i < 7 ; i++)
+			for (size_t i = 0; i < 7; i++)
 			{
 				if (i == 6)
 				{
@@ -155,7 +152,7 @@ vector<string> Config::parseMethod(string parsed, string path, int n)
 			tmp.push_back(*it);
 	}
 
-	for (size_t i = 0; i < 7 ; i++)
+	for (size_t i = 0; i < 7; i++)
 	{
 		if (i == 6)
 		{
@@ -201,7 +198,8 @@ pair<string, map<string, string> > parseLocation(int fd, int *numb, string path,
 			if (!start && line.find_first_of('{') != line.npos)
 			{
 				line.clear();
-				start = true;;
+				start = true;
+				;
 				in = true;
 				continue;
 			}
@@ -230,7 +228,7 @@ pair<string, map<string, string> > parseLocation(int fd, int *numb, string path,
 	}
 	if (in)
 	{
-		cout << "\e[91mmissing '\e[1;91m}\e[0;91m' in \e[1;91m" << path<< ":" << n << "\e[0m" << endl;
+		cout << "\e[91mmissing '\e[1;91m}\e[0;91m' in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
 		exit(1);
 	}
 	if (!params.count("index"))
@@ -238,7 +236,7 @@ pair<string, map<string, string> > parseLocation(int fd, int *numb, string path,
 	return make_pair(loc, params);
 }
 
-map<int, string> parseErrorPages(int fd, int *numb, map<int, string>default_pages, string path)
+map<int, string> parseErrorPages(int fd, int *numb, map<int, string> default_pages, string path)
 {
 	bool in = false;
 	bool start = false;
@@ -249,7 +247,6 @@ map<int, string> parseErrorPages(int fd, int *numb, map<int, string>default_page
 	char c;
 
 	string line;
-
 
 	while ((ret = read(fd, &c, 1)) >= 0)
 	{
@@ -266,7 +263,8 @@ map<int, string> parseErrorPages(int fd, int *numb, map<int, string>default_page
 			if (!start && line.find_first_of('{') != line.npos)
 			{
 				line.clear();
-				start = true;;
+				start = true;
+				;
 				in = true;
 				continue;
 			}
@@ -290,7 +288,7 @@ map<int, string> parseErrorPages(int fd, int *numb, map<int, string>default_page
 				int code = atoi(get_key(line).c_str());
 				if (!code)
 				{
-					cout << "\e[91minvalid \e[1;91m["<< get_key(line) <<"\e[0;91m] error code \e[1;91m" << path << ":" << n << "\e[0m"<< endl;
+					cout << "\e[91minvalid \e[1;91m[" << get_key(line) << "\e[0;91m] error code \e[1;91m" << path << ":" << n << "\e[0m" << endl;
 					exit(1);
 				}
 				default_pages[code] = get_val(line);
@@ -303,7 +301,7 @@ map<int, string> parseErrorPages(int fd, int *numb, map<int, string>default_page
 	}
 	if (in)
 	{
-		cout << "\e[91mmissing \e[1;91m}\e[0;91m] in \e[1;91m" << path << ":" << n << "\e[0m"<< endl;
+		cout << "\e[91mmissing \e[1;91m}\e[0;91m] in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
 		exit(1);
 	}
 	*numb = n;
@@ -352,7 +350,7 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 	map<string, map<string, string> > locations;
 	map<string, vector<string> > methods;
 	vector<string> allowed;
-	
+
 	error_pages.insert(make_pair(404, "default/error.html"));
 	error_pages.insert(make_pair(405, "default/error.html"));
 
@@ -382,7 +380,7 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 			{
 				if (!start)
 				{
-					cout << "\e[91mmissing '\e[1;91m{\e[0;91m' in \e[1;91m" << path << ":" << n << "\e[0m"<< endl;
+					cout << "\e[91mmissing '\e[1;91m{\e[0;91m' in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
 					exit(1);
 				}
 				in = false;
@@ -392,74 +390,73 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 			{
 				if (!start)
 				{
-					cout << "\e[91mmissing '\e[1;91m{\e[0;91m' in \e[1;91m" << path<< ":" << n << "\e[0m" << endl;
+					cout << "\e[91mmissing '\e[1;91m{\e[0;91m' in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
 					exit(1);
 				}
 				n++;
-			if (!is_not_whitespace(line))
-			{
-				line.clear();
-				continue;
-			}
-			for (int i = 0; i < 8 /*replace by 4 */; i++)
-			{
-				if (i == 7)
+				if (!is_not_whitespace(line))
 				{
-					cout << "\e[91m[\e[1;39m" << get_key(line) << "\e[91m] is an unexcepted identifier in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
-					exit(1);
+					line.clear();
+					continue;
 				}
-				if (get_key(line) == possible[i])
+				for (int i = 0; i < 8 /*replace by 4 */; i++)
 				{
-					switch (i)
+					if (i == 7)
 					{
-					case 0:
-						port = atoi(get_val(line).c_str());
-						if (!port)
+						cout << "\e[91m[\e[1;39m" << get_key(line) << "\e[91m] is an unexcepted identifier in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+						exit(1);
+					}
+					if (get_key(line) == possible[i])
+					{
+						switch (i)
 						{
-							cout << "\e[91m[\e[1;39m" << line << "\e[91m] invalid port in \e[1;91m" << path << ":" << n << "\e[0m"<< endl;
-							exit(1);
+						case 0:
+							port = atoi(get_val(line).c_str());
+							if (!port)
+							{
+								cout << "\e[91m[\e[1;39m" << line << "\e[91m] invalid port in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+								exit(1);
+							}
+							i = 7;
+							break;
+						case 1:
+							name = get_val(line);
+							i = 7;
+							break;
+						case 2:
+							root = get_val(line);
+							i = 7;
+							break;
+						case 3:
+							error_pages = parseErrorPages(fd, &n, error_pages, path);
+							i = 7;
+							break;
+						case 4:
+							locations.insert(parseLocation(fd, &n, path, line));
+							methods.insert(parseMethod(locations.find(get_val(line))->second, get_val(line), path, n));
+							i = 7;
+							break;
+						case 5:
+							index = get_val(line);
+							i = 7;
+							break;
+						case 6:
+							allowed = parseMethod(get_val(line), path, n);
+							i = 7;
+							break;
+						default:
+							break;
 						}
-						i = 7;
-						break;
-					case 1:
-						name = get_val(line);
-						i = 7;
-						break;
-					case 2:
-						root = get_val(line);
-						i = 7;
-						break;
-					case 3:
-						error_pages = parseErrorPages(fd,  &n, error_pages, path);
-						i = 7;
-						break;
-					case 4:
-						locations.insert(parseLocation(fd, &n, path, line));
-						methods.insert(parseMethod(locations.find(get_val(line))->second, get_val(line), path, n));
-						i = 7;
-						break;
-					case 5:
-						index = get_val(line);
-						i = 7;
-						break;
-					case 6:
-						allowed = parseMethod(get_val(line), path, n);
-						i = 7;
-						break;
-					default:
-						break;
 					}
 				}
 			}
+			//DEBUG	cout << "\e[94mdata server registered: " << line << "\e[0m" <<endl;
+			line.clear();
 		}
-	//DEBUG	cout << "\e[94mdata server registered: " << line << "\e[0m" <<endl;
-		line.clear();
-	}
-
 	}
 	if (in)
 	{
-		cout << "\e[91mmissing '\e[1;91m}\e[0;91m' in \e[1;91m" << path<< ":" << n << "\e[0m" << endl;
+		cout << "\e[91mmissing '\e[1;91m}\e[0;91m' in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
 		exit(1);
 	}
 	if (!allowed.size())
@@ -472,8 +469,6 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 
 	_pre_Serv.push_back(preServ);
 }
-
-
 
 // PARSIN =================================================================================================
 
@@ -550,7 +545,6 @@ Config::Config(string path)
 		}
 	}
 
-
 	close(fd);
 	for (size_t j = 0; j < _pre_Serv.size(); j++)
 		_servers.push_back(new Server(_pre_Serv[j]));
@@ -561,14 +555,67 @@ Config::Config(string path)
 	}
 }
 
-Config::~Config() 
+Config::~Config()
 {
 	//close(_fd);
 	// for (int i = 0; i < getCountWorkers(); i++)
 	// 	delete this->getWorkers().find(i)->second->getThread();
 }
 
+// Hearth of webserv
+void Config::run(map<int, Worker *> &workers, int count)
+{
+	struct timeval tv;
+	tv.tv_usec = 0;
+	tv.tv_sec = 20;
+	// _count_requests = 0;
+	// (void)workers[count];
+
+	while (1)
+	{
+		size_t i = 0;
+		for (i = 0; i < getServers().size(); i++)
+		{
+			// Prepare variables for current server
+			socklen_t clilen = sizeof(getServers().at(i)->getCliAddr());
+			sockaddr_in cli_addr = getServers().at(i)->getCliAddr();
+			fd_set write_fds = getServers().at(i)->getWriteFD();
+			fd_set read_fds = getServers().at(i)->getReadFD();
+			fd_set write_fds2 = getServers().at(i)->getWriteFD();
+			fd_set read_fds2 = getServers().at(i)->getReadFD();
+			for (int l = 0; l < count; l++)
+				workers.find(l)->second->setSocket(0);
+			if (select(getServers().at(i)->getSocket() + 1, &read_fds2, &write_fds2, NULL, &tv) > 0)
+			{
+				// Search for an available worker
+				int j;
+				while (1)
+				{
+					j = 0;
+					while (workers.find(j)->second->getStatus() && j < count - 1)
+						j++;
+					if (workers.find(j)->second->getStatus())
+						break;
+				}
+				workers.find(j)->second->setServer(getServers().at(i));
+				workers.find(j)->second->setSocket(22);
+				if (!FD_ISSET(getServers().at(i)->getSocket(), &write_fds) || !FD_ISSET(getServers().at(i)->getSocket(), &read_fds))
+					// error("ERROR non-set socket");
+					;
+				int newsockfd = accept(getServers().at(i)->getSocket(), (struct sockaddr *)&cli_addr, &clilen);
+				// if (newsockfd < 0)
+				// 	error("ERROR on accept");
+					cout << "jen ressors jamais";
+				getServers().at(i)->handle_request(newsockfd);
+				cout << "jen ressors jamais";
+				close(newsockfd);
+			}
+			else
+				getServers().at(i)->log("\e[1;96m[IDLING]\e[0m");
+		}
+	}
+}
+
 int Config::getCountWorkers() { return _count_workers; }
-map<int, Worker *> &Config::getWorkers() { return _workers;}
+map<int, Worker *> &Config::getWorkers() { return _workers; }
 vector<Server *> Config::getServers() { return _servers; }
-// map<int, Worker

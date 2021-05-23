@@ -69,8 +69,9 @@ class Server
 		void error(const char *);
 		void log(string);
 		bool check_methods(map<string, string>);
+			void handle_request(int);
 	private:
-		void handle_request(int);
+	
 		
 
 		string GET(map<string, string>, int);

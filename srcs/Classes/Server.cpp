@@ -149,14 +149,14 @@ void Server::handle_request(int sock)
 	bzero(buffer, 4096);
 	int n = read(sock, buffer, 4096);
 	// cout << buffer << endl;
-
+	cout << "allo\n";
 	Headers request;
 	request += string(buffer);
 	string response;
 	map<string, string> p_request = request.last();
 
 	string req_type = p_request.find("Request-Type")->second;
-
+	cout << "allo\n";
 	for (size_t i = 0; i <= type->size(); i++)
 	{
 		if (i == type->size())
@@ -166,6 +166,7 @@ void Server::handle_request(int sock)
 		}
 		if (!strcmp(req_type.c_str(), type[i].c_str()))
 		{
+		
 			if (check_methods(p_request))
 				response = (this->*command[i])(p_request, sock);
 			else
@@ -175,8 +176,11 @@ void Server::handle_request(int sock)
 			}
 			break ;
 		}
+			
 	}
+		cout << "allo\n";
 	n = write(sock, response.c_str(), strlen(response.c_str()));
+		cout << "allo\n";
 	if (n < 0)
 		error("Can't send the response");
 
