@@ -121,10 +121,10 @@ void Server::run(map<int, Worker *> & workers, int count)
 				if (workers.find(i)->second->getStatus())
 					break;
 			}
-			workers.find(0)->second->setSocket(22);
-			// sleep(2);
-			cout << "le socket change : " << workers.find(0)->second->getSocket() << endl;
-			log("\e[33mWorker 1 is now working!\e[0m");
+			workers.find(i)->second->setServer(this);
+			workers.find(i)->second->setSocket(22);
+			
+			
 			if (!FD_ISSET(_socket, &_write_fds) || !FD_ISSET(_socket, &_read_fds))
 				error("ERROR non-set socket");
 			int newsockfd = accept(_socket, (struct sockaddr *)&_cli_addr, &clilen);
@@ -142,7 +142,7 @@ void Server::handle_request(int sock)
 {
 
 	string type[] = {"GET", "POST", "HEAD"};
-	string (Server::*command[])(map<string, string>, int) = {&Server::GET, &Server::POST, &Server::HEAD};
+	string (Server::*command[])(map<string, string>, int) = {&Server::GET, &Server::POST, &Server::HEAD, &Server::PUT};
 	char buffer[4096];
 
 	// Read until header until is finished
@@ -288,6 +288,13 @@ string Server::POST(map<string, string> header, int socket)
 	return resp;
 }
 
+string Server::PUT(map<string, string> header, int socket)
+{
+	(void)socket;
+	(void)header;
+	return NULL;
+}
+
 // A ameliorer plus tard
 string Server::HEAD(map<string, string> header, int socket)
 {
@@ -296,7 +303,7 @@ string Server::HEAD(map<string, string> header, int socket)
 	string resp;
 	t_file file = getFile(header.find("Location")->second);
 
-	
+	// Return only sizeof file size - content size
 	resp = tmp.return_response_header(200, tmp, file.size - strlen(file.content.c_str()));
 	return file.content;
 }

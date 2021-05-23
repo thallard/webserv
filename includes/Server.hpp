@@ -11,7 +11,7 @@ typedef struct s_file
 	string content;
 	size_t size;
 }				t_file;
-
+class Worker;
 class Server
 {		
 	public:
@@ -66,19 +66,22 @@ class Server
 		fd_set *getReadFD_ptr() { return &_read_fds;};
 
 		void run(map<int, Worker *> &, int);
-	private:
-		void handle_request(int);
 		void error(const char *);
 		void log(string);
+		bool check_methods(map<string, string>);
+	private:
+		void handle_request(int);
+		
 
 		string GET(map<string, string>, int);
 		string POST(map<string, string>, int);
 		string HEAD(map<string, string>, int);
+		string PUT(map<string, string>, int);
 		string SEND_ERROR(int , const char *);
 
 		t_file getFile(string);
 
-		bool check_methods(map<string, string>);
+		
 };
 
 #endif
