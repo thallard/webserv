@@ -43,6 +43,11 @@ int Worker::getId()
 	return (id);
 }
 
+int Worker::getSocket()
+{
+	return socket;
+}
+
 pthread_t *Worker::getThread()
 {
 	return (thread);
@@ -51,4 +56,9 @@ pthread_t *Worker::getThread()
 void Worker::setStatus(bool val)
 {
 	is_available = val;
+}
+
+void Worker::setSocket(int sock)
+{
+	socket = sock;
 }

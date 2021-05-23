@@ -15,6 +15,7 @@ public:
 	~Worker();
 	bool getStatus();
 	int getId();
+	int getSocket();
 	pthread_t *getThread();
 
 	void setStatus(bool);

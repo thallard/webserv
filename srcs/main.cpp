@@ -6,7 +6,7 @@
 
 using namespace std;
 static int count_requests = 0;
-static pthread_mutex_t  print_mutex = PTHREAD_MUTEX_INITIALIZER;
+// static pthread_mutex_t  print_mutex = PTHREAD_MUTEX_INITIALIZER;
 void dostuff(int); /* function prototype */
 
 
@@ -19,24 +19,30 @@ void error(const char *msg)
 void *main_loop(void * arg)
 {
 	Worker *w = reinterpret_cast<Worker *>(arg);
-		// dprintf(1, "coucou fdp %d!\n", w->getId());
+		dprintf(1, "coucou fdp %d!\n", w->getId());
 	// w->setStatus(false);
 
-	// while (1)
-	// {
-	// 	w->setStatus(false);
-	// 	w->setStatus(true);
-	// }
-	sleep(1);
-	if (!w->getStatus())
+	while (1)
 	{
-		pthread_mutex_lock(&print_mutex);
-		w->setStatus(true);
-		cout << "\e[1;32mWorker " << w->getId() << " is now available!\e[0;0m\n";
-		pthread_mutex_unlock(&print_mutex);
+		// w->setStatus(false);
+	// 	if (!w->getStatus())
+	// {
+	// 	
+	// 	w->setStatus(true);
+	// 	cout << "\e[1;32mWorker " << w->getId() << " is now available!\e[0;0m\n";
+	// 	pthread_mutex_unlock(&print_mutex);
+	// }
+	// pthread_mutex_lock(&print_mutex);
+		// 
+		if (w->getSocket() != 0)
+		{
+			dprintf(1, "du travail pour le worker %d!\n", w->getId());
+		}
+		// usleep(1000);
+		// dprintf(1, "ici %d\n", w->getSocket());
 	}
+	// sleep(1);
 	
-	(void)arg;
 	return NULL;
 }
 
@@ -64,11 +70,12 @@ int main(int argc, char *argv[])
 	//Server server(8080);
 	for (int i = 0; i < config.getCountWorkers(); i++)
 	{
+		config.getWorkers().find(i)->second->setSocket(0);
 		pthread_t *thread = config.getWorkers().find(i)->second->getThread();
 		pthread_create(thread, NULL, main_loop, reinterpret_cast<void *>(config.getWorkers().find(i)->second));
 		usleep(10);
-		pthread_detach(*thread);
-		pthread_join(*thread, NULL);
+		// pthread_detach(*thread);
+		
 	}
 	dprintf(1, "miaou miaou %d\n", config.getWorkers().find(0)->second->getStatus());
 	
@@ -159,6 +166,8 @@ int main(int argc, char *argv[])
 				//dprintf(1, "miaou miaou %d\n", config.getWorkers().find(0)->second->getStatus());
 		}
 	}*/
+	for (int i = 0; i < config.getCountWorkers(); i++)
+		pthread_join(*config.getWorkers().find(i)->second->getThread(), NULL);
 	return 0;
 }
 

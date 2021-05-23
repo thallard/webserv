@@ -94,13 +94,13 @@ Server &Server::operator=(Server const &ref)
 	return *this;
 }
 
-void Server::run(map<int, Worker *> workers, int count)
+void Server::run(map<int, Worker *> & workers, int count)
 {
 	struct timeval tv;
 	tv.tv_usec = 0;
-	tv.tv_sec = 60;
+	tv.tv_sec = 20;
 	_count_requests = 0;
-	(void)workers[count];
+	// (void)workers[count];
 
 	socklen_t clilen = sizeof(_cli_addr);
 
@@ -108,7 +108,8 @@ void Server::run(map<int, Worker *> workers, int count)
 	{
 		fd_set write_fds2 = _write_fds;
 		fd_set read_fds2 = _read_fds;
-
+		for (int l = 0; l < count; l++)
+			workers.find(l)->second->setSocket(0);
 		if (select(_socket + 1, &read_fds2, &write_fds2, NULL, &tv) > 0)
 		{
 			int i = 0;
@@ -120,6 +121,9 @@ void Server::run(map<int, Worker *> workers, int count)
 				if (workers.find(i)->second->getStatus())
 					break;
 			}
+			workers.find(0)->second->setSocket(22);
+			// sleep(2);
+			cout << "le socket change : " << workers.find(0)->second->getSocket() << endl;
 			log("\e[33mWorker 1 is now working!\e[0m");
 			if (!FD_ISSET(_socket, &_write_fds) || !FD_ISSET(_socket, &_read_fds))
 				error("ERROR non-set socket");
@@ -261,7 +265,7 @@ string Server::POST(map<string, string> header, int socket)
 	// A UPDATE tres rapidement des que le GetFile est patch
 
 	// cout << " je print :" << to_print << ":\n";
-	int nb_prints, fd = open("default/file.txt", O_TRUNC | O_WRONLY, 0777);
+	int nb_prints, fd = open("default/file.txt", O_TRUNC | O_WRONLY | O_NONBLOCK, 0777);
 	istringstream iss(header.find("Content-Length")->second);
 	size_t remaining_characters, count = 0;
 	iss >> remaining_characters;
@@ -284,16 +288,20 @@ string Server::POST(map<string, string> header, int socket)
 	return resp;
 }
 
-// PAS FAIS
+// A ameliorer plus tard
 string Server::HEAD(map<string, string> header, int socket)
 {
 	(void)socket;
+	Headers tmp;
+	string resp;
 	t_file file = getFile(header.find("Location")->second);
 
+	
+	resp = tmp.return_response_header(200, tmp, file.size - strlen(file.content.c_str()));
 	return file.content;
 }
 
-//A AMELIORER
+//A AMELIORER plus tard
 string Server::GET(map<string, string> header, int socket)
 {
 	(void)socket;

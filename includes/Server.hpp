@@ -65,7 +65,7 @@ class Server
 		fd_set *getWriteFD_ptr() { return &_write_fds;};
 		fd_set *getReadFD_ptr() { return &_read_fds;};
 
-		void run(map<int, Worker *>, int);
+		void run(map<int, Worker *> &, int);
 	private:
 		void handle_request(int);
 		void error(const char *);

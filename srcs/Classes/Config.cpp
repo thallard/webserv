@@ -569,6 +569,6 @@ Config::~Config()
 }
 
 int Config::getCountWorkers() { return _count_workers; }
-map<int, Worker *> Config::getWorkers() { return _workers;}
+map<int, Worker *> &Config::getWorkers() { return _workers;}
 vector<Server *> Config::getServers() { return _servers; }
 // map<int, Worker

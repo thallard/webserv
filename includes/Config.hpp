@@ -28,7 +28,7 @@ class Config
 		
 		// Workers
 		int getCountWorkers();
-		map<int, Worker *> getWorkers();
+		map<int, Worker *> &getWorkers();
 
 		vector<Server *> getServers();
 		Server *getAt(int n) { return _servers[n];};
