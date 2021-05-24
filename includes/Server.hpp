@@ -32,6 +32,7 @@ class Server
 		map<string, map<string, string> > _locations;
 		map<string, vector<string> > _locations_methods;
 		map<int, string> _error_pages;
+		map<int, Worker *> _workers;
 
 		vector<string> _allowed;
 
@@ -39,6 +40,7 @@ class Server
 		fd_set _read_fds;
 
 		int _count_requests;
+		pthread_t *thread;
 	public:
 		Server(int);
 		Server(_t_preServ);
@@ -65,22 +67,25 @@ class Server
 		fd_set *getWriteFD_ptr() { return &_write_fds;};
 		fd_set *getReadFD_ptr() { return &_read_fds;};
 
-		void run(map<int, Worker *> &, int);
+		pthread_t *getThread() { return thread; }
+		void run(map<int, Worker *> &);
 		void error(const char *);
 		void log(string);
 		bool check_methods(map<string, string>);
 			void handle_request(int);
-	private:
-	
-		
 
 		string GET(map<string, string>, int);
 		string POST(map<string, string>, int);
 		string HEAD(map<string, string>, int);
 		string PUT(map<string, string>, int);
 		string SEND_ERROR(int , const char *);
+			t_file getFile(string);
+	private:
+	
+		
 
-		t_file getFile(string);
+
+	
 
 		
 };

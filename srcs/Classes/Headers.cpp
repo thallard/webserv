@@ -48,7 +48,11 @@ void Headers::operator+=(string send)
 			head.insert(make_pair(index, content));
 		}
 	}
+	if (!head.count("Content-Length"))
+		head.insert(make_pair("Content-Length", "0"));
 	_headers.insert(make_pair(_headers.size(), head));
+	
+
 }
 
 int Headers::check(map<string, string> actual)
@@ -75,19 +79,22 @@ string Headers::return_response_header(int status, Headers header, size_t size_c
 	switch (status)
 	{
 	case STATUS_OK:
-		response = "HTTP/1.1 200 OK\n\r";
+		response = "HTTP/1.1 200 OK\r\n";
 		break;
 	case STATUS_NO_CONTENT:
-		response = "HTTP/1.1 204 No Content\n\r";
+		response = "HTTP/1.1 204 No Content\r\n";
 		break;
 	case STATUS_NOT_FOUND:
-		response = "HTTP/1.1 404 Not Found\n\r";
+		response = "HTTP/1.1 404 Not Found\r\n";
 		break;
 	case STATUS_METHOD_NOT_ALLOWED:
-		response = "HTTP/1.1 405 Method Not Allowed\n\r";
+		response = "HTTP/1.1 405 Method Not Allowed\r\n";
 		break;
 	case STATUS_TEAPOT:
-		response = "HTTP/1.1 418 I'm a teapot\n\r";
+		response = "HTTP/1.1 418 I'm a teapot\r\n";
+		break;
+	case STATUS_HEAD:
+		response = "HTTP/1.1 200 OK\r\n";
 		break;
 	default:
 		break;
@@ -106,12 +113,17 @@ string Headers::return_response_header(int status, Headers header, size_t size_c
 	strftime(buffer, sizeof buffer, " ", info);
 	response += "Date:";
 	response += buffer;
-	strftime(buffer, sizeof buffer, "%p %I:%M GMT +2.\n\r", info);
+	strftime(buffer, sizeof buffer, "%p %I:%M GMT +2.\r\n", info);
 	response += asctime(info);
-	response += "Server: webserv\n\r";
+	response += "Server: webserv\r\n";
 	// If method is GET/HEAD, its gonna fill this line
-	if (size_content > 0)
-		response += "Content-Length: " + std::to_string(size_content) + "\n\r";
-	response += "Content-Language: fr-FR\n\r\n\r";
+	if (status == STATUS_NO_CONTENT)
+		response += "Content-Length: 0\r\n";
+	else if (size_content > 0)
+		response += "Content-Length: " + std::to_string(size_content) + "\r\n";
+	response += "Content-Language: fr-FR\r\n";
+	if (status != STATUS_HEAD)
+		response += "\r\n";
+	// cout << response;
 	return (response);
 }

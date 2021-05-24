@@ -1,15 +1,3 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   Utils.hpp                                          :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: thjacque <thjacque@student.42lyon.fr>      +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2021/05/10 14:51:19 by thallard          #+#    #+#             */
-/*   Updated: 2021/05/20 13:23:57 by thjacque         ###   ########lyon.fr   */
-/*                                                                            */
-/* ************************************************************************** */
-
 #ifndef UTILS_HPP
 #define UTILS_HPP
 
@@ -42,6 +30,8 @@ using namespace std;
 
 #define STATUS_OK 200
 #define STATUS_NO_CONTENT 204
+
+#define STATUS_HEAD 9999
 
 #define STATUS_METHOD_NOT_ALLOWED 405
 #define STATUS_NOT_FOUND 404

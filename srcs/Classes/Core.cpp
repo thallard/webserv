@@ -1,4 +1,4 @@
-#include "Config.hpp"
+#include "Core.hpp"
 
 // UTILS ============================================================================================
 
@@ -61,7 +61,7 @@ bool is_not_whitespace(string line)
 
 // PARSING INDEPENDANT ================================================================================
 
-pair<string, vector<string> > Config::parseMethod(map<string, string> args, string loc, string path, int n)
+pair<string, vector<string> > Core::parseMethod(map<string, string> args, string loc, string path, int n)
 {
 	vector<string> methods;
 
@@ -117,7 +117,7 @@ pair<string, vector<string> > Config::parseMethod(map<string, string> args, stri
 	return make_pair(loc, methods);
 }
 
-vector<string> Config::parseMethod(string parsed, string path, int n)
+vector<string> Core::parseMethod(string parsed, string path, int n)
 {
 	vector<string> methods;
 
@@ -308,7 +308,7 @@ map<int, string> parseErrorPages(int fd, int *numb, map<int, string> default_pag
 	return default_pages;
 }
 
-void Config::setWorkers(string line)
+void Core::setWorkers(string line)
 {
 	int nb = 0;
 	for (string::iterator it = line.begin(); it != line.end(); it++)
@@ -330,9 +330,9 @@ void Config::setWorkers(string line)
 
 //TODO if port exist, default_server > other
 
-void Config::parseServer(int fd, string line, string path, int *numb)
+void Core::parseServer(int fd, string line, string path, int *numb)
 {
-	//map<string, map<string, string> config;
+	//map<string, map<string, string> Core;
 	bool start = false;
 	bool in = false;
 
@@ -343,7 +343,7 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 	char c;
 
 	string name = "default_server";
-	string root = "./default/";
+	string root = "./default";
 	string index = "index.html";
 
 	map<int, string> error_pages;
@@ -472,7 +472,7 @@ void Config::parseServer(int fd, string line, string path, int *numb)
 
 // PARSIN =================================================================================================
 
-Config::Config(string path)
+Core::Core(string path)
 {
 	int fd;
 	fd = open(path.c_str(), O_RDONLY | O_DIRECTORY | O_NONBLOCK);
@@ -555,7 +555,7 @@ Config::Config(string path)
 	}
 }
 
-Config::~Config()
+Core::~Core()
 {
 	//close(_fd);
 	// for (int i = 0; i < getCountWorkers(); i++)
@@ -563,7 +563,7 @@ Config::~Config()
 }
 
 // Hearth of webserv
-void Config::run(map<int, Worker *> &workers, int count)
+void Core::run(map<int, Worker *> &workers, int count)
 {
 	struct timeval tv;
 	tv.tv_usec = 0;
@@ -592,6 +592,7 @@ void Config::run(map<int, Worker *> &workers, int count)
 				while (1)
 				{
 					j = 0;
+
 					while (workers.find(j)->second->getStatus() && j < count - 1)
 						j++;
 					if (workers.find(j)->second->getStatus())
@@ -605,9 +606,9 @@ void Config::run(map<int, Worker *> &workers, int count)
 				int newsockfd = accept(getServers().at(i)->getSocket(), (struct sockaddr *)&cli_addr, &clilen);
 				// if (newsockfd < 0)
 				// 	error("ERROR on accept");
-					cout << "jen ressors jamais";
+					cout << "jen ressors jamais1 " << endl;
 				getServers().at(i)->handle_request(newsockfd);
-				cout << "jen ressors jamais";
+				cout << "jen ressors jamais2 " <<endl;
 				close(newsockfd);
 			}
 			else
@@ -616,6 +617,16 @@ void Config::run(map<int, Worker *> &workers, int count)
 	}
 }
 
-int Config::getCountWorkers() { return _count_workers; }
-map<int, Worker *> &Config::getWorkers() { return _workers; }
-vector<Server *> Config::getServers() { return _servers; }
+Core &Core::operator=(const Core & other)
+{
+	//if (other == this)
+	//	return *this;
+	_count_workers = other._count_workers;
+	_servers = other._servers;
+	_workers = other._workers;
+	return *this;
+}
+
+int Core::getCountWorkers() { return _count_workers; }
+map<int, Worker *> &Core::getWorkers() { return _workers; }
+vector<Server *> Core::getServers() { return _servers; }

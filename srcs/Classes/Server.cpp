@@ -32,6 +32,9 @@ Server::Server(int port)
 
 Server::Server(_t_preServ pre)
 {
+	// Init thread
+	thread = new pthread_t;
+
 	_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (_socket < 0)
 		perror("ERROR opening socket");
@@ -94,13 +97,17 @@ Server &Server::operator=(Server const &ref)
 	return *this;
 }
 
-void Server::run(map<int, Worker *> & workers, int count)
+
+
+void Server::run(map<int, Worker *> & workers)
 {
-	struct timeval tv;
-	tv.tv_usec = 0;
-	tv.tv_sec = 20;
+	// signal(SIGINT, this::signal_handle);
+	struct timeval tv = {1, 0};
+
 	_count_requests = 0;
-	// (void)workers[count];
+	int count = workers.size();
+	_workers = workers;
+	int idle = 0;
 
 	socklen_t clilen = sizeof(_cli_addr);
 
@@ -112,36 +119,47 @@ void Server::run(map<int, Worker *> & workers, int count)
 			workers.find(l)->second->setSocket(0);
 		if (select(_socket + 1, &read_fds2, &write_fds2, NULL, &tv) > 0)
 		{
+			// Search for an available worker
 			int i = 0;
 			while (1)
 			{
 				i = 0;
-				while (workers.find(i)->second->getStatus() && i < count - 1)
+				while (!workers.find(i)->second->getStatus() && i < count - 1)
 					i++;
 				if (workers.find(i)->second->getStatus())
 					break;
+				cout << "jboucle inf ici mais ca a pas de sens c si la\n";
 			}
-			workers.find(i)->second->setServer(this);
-			workers.find(i)->second->setSocket(22);
-			
-			
 			if (!FD_ISSET(_socket, &_write_fds) || !FD_ISSET(_socket, &_read_fds))
 				error("ERROR non-set socket");
 			int newsockfd = accept(_socket, (struct sockaddr *)&_cli_addr, &clilen);
+		//	sleep(10);
 			if (newsockfd < 0)
 				error("ERROR on accept");
-			handle_request(newsockfd);
-			close(newsockfd);
+			workers.find(i)->second->setServer(this);
+			workers.find(i)->second->setStatus(false);
+			workers.find(i)->second->setSocket(newsockfd);
+	
+			// handle_request(newsockfd);
+			 while (!workers.find(i)->second->getStatus())
+			 	;
+		
+			//close(newsockfd);
+		}
+		else if (idle == 20)
+		{
+			log("\e[1;96m[IDLING]\e[0m");
+			idle = 0;
 		}
 		else
-			log("\e[1;96m[IDLING]\e[0m");
+			idle++;
 	}
 }
 
 void Server::handle_request(int sock)
 {
 
-	string type[] = {"GET", "POST", "HEAD"};
+	string type[] = {"GET", "POST", "HEAD", "PUT"};
 	string (Server::*command[])(map<string, string>, int) = {&Server::GET, &Server::POST, &Server::HEAD, &Server::PUT};
 	char buffer[4096];
 
@@ -149,14 +167,14 @@ void Server::handle_request(int sock)
 	bzero(buffer, 4096);
 	int n = read(sock, buffer, 4096);
 	// cout << buffer << endl;
-	cout << "allo\n";
+	// cout << "allo1\n";
 	Headers request;
 	request += string(buffer);
 	string response;
 	map<string, string> p_request = request.last();
 
 	string req_type = p_request.find("Request-Type")->second;
-	cout << "allo\n";
+	// cout << "allo2\n";
 	for (size_t i = 0; i <= type->size(); i++)
 	{
 		if (i == type->size())
@@ -178,11 +196,13 @@ void Server::handle_request(int sock)
 		}
 			
 	}
-		cout << "allo\n";
-	n = write(sock, response.c_str(), strlen(response.c_str()));
-		cout << "allo\n";
+	// cout << "allo3\n";
+	n = send(sock, response.c_str(), response.size(), MSG_DONTWAIT);
+	 //n = write(sock, response.c_str(), strlen(response.c_str()));
+	// cout << "allo4\n";
 	if (n < 0)
 		error("Can't send the response");
+	close(sock);
 
 	// TODO: CHECK HEADER
 
@@ -248,6 +268,9 @@ void Server::error(const char *s)
 //PAS FINIS
 string Server::POST(map<string, string> header, int socket)
 {
+
+	log("\e[1;93m[POST -> " + header.find("Location")->second + "]\e[0m");
+
 	(void)socket;
 	Headers tmp;
 	string resp, content;
@@ -257,22 +280,27 @@ string Server::POST(map<string, string> header, int socket)
 	//struct stat sb;
 
 	const char *content_char = header.find("Content")->second.c_str();
+	if (header.find("Content-Length")->second == "0")
+	{
+		return (tmp.return_response_header(STATUS_NO_CONTENT, tmp, 0 ));
+	}
 	// cout << content_char << endl;
 
 	const char *to_print = content_char;
-	log("\e[1;93m[POST -> " + header.find("Location")->second + "]\e[0m");
-
+	
 	t_file file = getFile(header.find("Location")->second);
 	if (header.count("Content") && !header.find("Content")->second.size())
 		resp = SEND_ERROR(STATUS_NO_CONTENT, "No Content");
 
 	// A UPDATE tres rapidement des que le GetFile est patch
-
+	cout << "ici1\n";
 	// cout << " je print :" << to_print << ":\n";
 	int nb_prints, fd = open("default/file.txt", O_TRUNC | O_WRONLY | O_NONBLOCK, 0777);
-	istringstream iss(header.find("Content-Length")->second);
+	cout << "je crash ici\n";
+	// istringstream iss(header.find("Content-Length")->second);
+		cout << "je crash ici\n";
 	size_t remaining_characters, count = 0;
-	iss >> remaining_characters;
+	remaining_characters = header.find("Content")->second.size();
 	while (count < remaining_characters)
 	{
 		if (65535 < count)
@@ -286,6 +314,7 @@ string Server::POST(map<string, string> header, int socket)
 		count += write(fd, to_print, nb_prints);
 		// cout <<  count << endl;
 	}
+	cout << "ici2\n";
 	close(fd);
 
 	resp = tmp.return_response_header(200, tmp, file.size);
@@ -308,21 +337,22 @@ string Server::HEAD(map<string, string> header, int socket)
 	t_file file = getFile(header.find("Location")->second);
 
 	// Return only sizeof file size - content size
-	resp = tmp.return_response_header(200, tmp, file.size - strlen(file.content.c_str()));
-	return file.content;
+	resp = tmp.return_response_header(STATUS_HEAD, tmp, 0);
+	resp += "Location: http://localhost:8080/\r\n\r\n";
+	cout << resp;
+	return resp;
 }
 
 //A AMELIORER plus tard
 string Server::GET(map<string, string> header, int socket)
 {
 	(void)socket;
-	log("\e[1;93m[GET -> " + header.find("Location")->second + "]\e[0m");
+	 log("\e[1;93m[GET -> " + header.find("Location")->second + "]\e[0m");
 
 	t_file file = getFile(header.find("Location")->second);
 	Headers tmp;
 	string resp;
 
-	cout << header.count("coffee") << endl;
 	if (file.content == "NOT FOUND" && file.size == 0)
 		resp = SEND_ERROR(STATUS_NOT_FOUND, "Not Found");
 	else if (header.count("coffee"))
@@ -332,7 +362,7 @@ string Server::GET(map<string, string> header, int socket)
 		resp = tmp.return_response_header(200, tmp, file.size);
 		resp += file.content;
 	}
-
+	cout << "je veux sortir sac a merde\n";
 	return resp;
 }
 
@@ -343,10 +373,10 @@ t_file Server::getFile(string loc)
 
 	map<string, map<string, string> >::iterator it = _locations.begin();
 
-	size_t pos;
+	size_t pos = loc.npos;
 	string parsed = "";
 
-	// FIND IF THE START OF THE URL IS PRESENT IN CONFIG
+	// FIND IF THE START OF THE URL IS PRESENT IN Core
 
 	for (size_t i = 0; i < _locations.size(); i++)
 	{
@@ -380,7 +410,7 @@ t_file Server::getFile(string loc)
 	if (parsed == "")
 		parsed = _root + loc;
 
-	//cout << "Final Location: " << parsed << endl;
+//	cout << "Final Location: " << parsed << endl;
 
 	int fd;
 	fd = open(parsed.c_str(), O_RDONLY | O_DIRECTORY | O_NONBLOCK);

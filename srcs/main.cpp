@@ -1,13 +1,27 @@
 #include "Utils.hpp"
 #include "Server.hpp"
 #include "Headers.hpp"
-#include "Config.hpp"
+#include "Core.hpp"
 #include "Worker.hpp"
 
 using namespace std;
 // static int count_requests = 0;
 // static pthread_mutex_t  print_mutex = PTHREAD_MUTEX_INITIALIZER;
 void dostuff(int); /* function prototype */
+
+Core *setCore(Core *obj)
+{
+	static Core *core = {NULL};
+	if (obj)
+		core = obj;
+	return core;
+}
+
+Core *getCore()
+{
+	return setCore(NULL);
+}
+
 
 void error(const char *msg)
 {
@@ -25,17 +39,63 @@ void *main_loop(void *arg)
 	{
 		if (w->getSocket() != 0)
 		{
-			w->getServer()->log("\e[1;96m[Worker " + to_string(w->getId()) + " is working on this server ! POST Method.]\e[0m");
+		cout << "\e[1;96m[Worker " << to_string(w->getId()) << "]\e[0m";
+		w->getServer()->handle_request(w->getSocket());
+		w->setStatus(true);
+			//close(w->getSocket());
 			w->setSocket(0);
-			break;
+		
+			// cout << "allo19\n";
+			// break;
 		}
 	}
 
 	return NULL;
 }
 
+void *run(void *arg)
+{
+	Core *core = reinterpret_cast<Core *>(arg);
+	core->getServers().at(core->getIdServer())->run(core->getWorkers());
+	return NULL;
+}
+
+void launch(Core *core)
+{
+	for (int i = 0; i < core->getCountWorkers(); i++)
+	{
+
+		core->getWorkers().find(i)->second->setSocket(0);
+		pthread_t *thread = core->getWorkers().find(i)->second->getThread();
+		pthread_create(thread, NULL, main_loop, reinterpret_cast<void *>(core->getWorkers().find(i)->second));
+		usleep(10);
+		pthread_detach(*thread);
+		pthread_join(*thread, NULL);
+	}
+	dprintf(1, "miaou miaou %d\n", core->getWorkers().find(0)->second->getStatus());
+
+	// Threads for multi-servers
+	for (size_t i = 0; i < core->getServers().size(); i++)
+	{
+		core->setIdServer(i);
+		pthread_t *thread = core->getServers().at(i)->getThread();
+		pthread_create(thread, NULL, run, reinterpret_cast<void *>(&core));
+		usleep(10);
+		pthread_detach(*thread);
+	}
+}
+
+void handle_signal(int sig)
+{
+	(void)sig;
+	cout << "\e[91;1m[CRASHED]" << endl << "\e[92;1m[Restarting ...]\e[0m" << endl;
+	launch(getCore());
+}
+
 int main(int argc, char *argv[])
 {
+
+	//signal(SIGABRT, handle_signal);
 
 	string path;
 	if (argc < 2)
@@ -43,31 +103,46 @@ int main(int argc, char *argv[])
 	else
 		path = argv[1];
 
-	Config config(path);
+	Core core(path);
+	setCore(&core);
 
-	for (int i = 0; i < config.getCountWorkers(); i++)
+	for (int i = 0; i < core.getCountWorkers(); i++)
 	{
-		config.getWorkers().find(i)->second->setSocket(0);
-		pthread_t *thread = config.getWorkers().find(i)->second->getThread();
-		pthread_create(thread, NULL, main_loop, reinterpret_cast<void *>(config.getWorkers().find(i)->second));
+
+		core.getWorkers().find(i)->second->setSocket(0);
+		pthread_t *thread = core.getWorkers().find(i)->second->getThread();
+		pthread_create(thread, NULL, main_loop, reinterpret_cast<void *>(core.getWorkers().find(i)->second));
 		usleep(10);
 		pthread_detach(*thread);
 		pthread_join(*thread, NULL);
 	}
-	dprintf(1, "miaou miaou %d\n", config.getWorkers().find(0)->second->getStatus());
+	dprintf(1, "miaou miaou %d\n", core.getWorkers().find(0)->second->getStatus());
 
+	// Threads for multi-servers
+	for (size_t i = 0; i < core.getServers().size(); i++)
+	{
+		core.setIdServer(i);
+		pthread_t *thread = core.getServers().at(i)->getThread();
+		pthread_create(thread, NULL, run, reinterpret_cast<void *>(&core));
+		usleep(10);
+		pthread_detach(*thread);
+	}
+	//launch(getCore());
+	while (1)
+		;
 	//////////////// NEW ! -- fork for each server
-	config.run(config.getWorkers(), config.getCountWorkers());
-	// for (size_t i = 0; i < config.getServers().size(); i++)
+	//Core.run(Core.getWorkers(), core.getCountWorkers());
+	// for (size_t i = 0; i < Core.getServers().size(); i++)
 	// {
 	// 	// if(!fork())
-	// 	config.getAt(i)->run(config.getWorkers(), config.getCountWorkers());
+	// 	Core.getAt(i)->run(Core.getWorkers(), Core.getCountWorkers());
 	// 	// else
 	// 	cout << "Server [\e[" << 92 + i << ";1m" << i << "\e[0m] launched !" << endl;
 	// }
 
-	// for (int i = 0; i < config.getCountWorkers(); i++)
-		
+	// for (size_t i = 0; i < core.getServers().size(); i++)
+	// 	pthread_join(*core.getServers().at(i)->getThread(), NULL);
+
 	return 0;
 }
 
