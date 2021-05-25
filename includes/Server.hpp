@@ -41,9 +41,10 @@ class Server
 
 		int _count_requests;
 		pthread_t *thread;
+		pthread_mutex_t *_logger;
 	public:
 		Server(int);
-		Server(_t_preServ);
+		Server(_t_preServ, pthread_mutex_t *);
 		Server &operator=(Server const & ref);
 		~Server();
 		int getSocket() { return _socket; };
@@ -68,6 +69,7 @@ class Server
 		fd_set *getReadFD_ptr() { return &_read_fds;};
 
 		pthread_t *getThread() { return thread; }
+		pthread_mutex_t *getLogger() {return _logger;};
 		void run(map<int, Worker *> &);
 		void error(const char *);
 		void log(string);
@@ -79,7 +81,9 @@ class Server
 		string HEAD(map<string, string>, int);
 		string PUT(map<string, string>, int);
 		string SEND_ERROR(int , const char *);
-			t_file getFile(string);
+		
+		t_file getFile(string);
+		pair< string, map<string, string> > getConfLoc(string);
 	private:
 	
 		

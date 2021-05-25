@@ -39,7 +39,9 @@ void *main_loop(void *arg)
 	{
 		if (w->getSocket() != 0)
 		{
+		pthread_mutex_lock(w->getServer()->getLogger());
 		cout << "\e[1;96m[Worker " << to_string(w->getId()) << "]\e[0m";
+		pthread_mutex_unlock(w->getServer()->getLogger());
 		w->getServer()->handle_request(w->getSocket());
 		w->setStatus(true);
 			//close(w->getSocket());

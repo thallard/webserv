@@ -30,11 +30,12 @@ Server::Server(int port)
 	FD_SET(_socket, &_read_fds);
 }
 
-Server::Server(_t_preServ pre)
+Server::Server(_t_preServ pre, pthread_mutex_t *logger)
 {
 	// Init thread
 	thread = new pthread_t;
-
+	_logger = logger;
+	cout << hex << (long)logger << endl;
 	_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (_socket < 0)
 		perror("ERROR opening socket");
@@ -146,7 +147,7 @@ void Server::run(map<int, Worker *> & workers)
 		
 			//close(newsockfd);
 		}
-		else if (idle == 20)
+		else if (idle == 30)
 		{
 			log("\e[1;96m[IDLING]\e[0m");
 			idle = 0;
@@ -166,7 +167,7 @@ void Server::handle_request(int sock)
 	// Read until header until is finished
 	bzero(buffer, 4096);
 	int n = read(sock, buffer, 4096);
-	// cout << buffer << endl;
+	 cout <<  "Request :" << endl << buffer << endl << "=====" << endl;
 	// cout << "allo1\n";
 	Headers request;
 	request += string(buffer);
@@ -337,7 +338,7 @@ string Server::HEAD(map<string, string> header, int socket)
 	t_file file = getFile(header.find("Location")->second);
 
 	// Return only sizeof file size - content size
-	resp = tmp.return_response_header(STATUS_HEAD, tmp, 0);
+	resp = tmp.return_response_header(200, tmp, 0);
 	resp += "Location: http://localhost:8080/\r\n\r\n";
 	cout << resp;
 	return resp;
@@ -366,10 +367,46 @@ string Server::GET(map<string, string> header, int socket)
 	return resp;
 }
 
+pair<string ,map<string, string> >Server::getConfLoc(string loc)
+{
+	map<string, map<string, string> >::iterator save  = _locations.find("/");
+	size_t max_found = loc.npos;
+	size_t pos;
+	map<string, map<string, string> >::iterator it = _locations.begin();
+
+	for (; it != _locations.end(); it++)
+	{
+		pos = loc.rfind(it->first);
+		if (max_found == loc.npos)
+		{
+			max_found = pos;
+			save = it;
+		}
+		else if (max_found != loc.npos && pos != loc.npos && pos > max_found)
+		{
+			max_found = pos;
+			save = it;
+		}
+	}
+	return *save;
+}
+
 // SOUCIS: si on  location /foo/ et location /foo/bar/ dans le .conf et aue l'url est /foo/bar/, il va chopper /foo/
 // il faut donc le comparer avec tout et prendre celui avec le + de char correspondant
 t_file Server::getFile(string loc)
 {
+
+
+
+/*pair<string ,map<string, string> > match_p = getConfLoc(loc);
+	map<string, string> matched = match_p.second;
+	string parsed = _root;
+	if (*(--(parsed.end())) != '/')
+		parsed += "/";
+	if (matched.count("root"))
+		parsed += matched.find("root")->second;
+	loc.replace(match_p.first.size());*/
+
 
 	map<string, map<string, string> >::iterator it = _locations.begin();
 
@@ -472,14 +509,17 @@ void Server::log(string s)
 	time_t t;
 	struct tm *info;
 	char buffer[64];
+	pthread_mutex_lock(_logger);
 
 	gettimeofday(&tv, NULL);
 	t = tv.tv_sec;
 
 	info = localtime(&t);
 	strftime(buffer, sizeof buffer, "[%c]", info);
+	cout << "\e[1;" << to_string(92 + _id) << "m[SERVER " << _id << "]\e[0m" << s << " \e[1;90m" << buffer << "\e[0m" << endl;
 
-	cout << "\e[1;" << 92 + _id << "m[SERVER " << _id << "]\e[0m" << s << " \e[1;90m" << buffer << "\e[0m" << endl;
+	pthread_mutex_unlock(_logger);
+
 }
 
 bool Server::check_methods(map<string, string> req)

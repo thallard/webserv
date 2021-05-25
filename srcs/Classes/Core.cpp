@@ -66,7 +66,7 @@ pair<string, vector<string> > Core::parseMethod(map<string, string> args, string
 	vector<string> methods;
 
 	methods.push_back("GET");
-	methods.push_back("HEAD");
+	//methods.push_back("HEAD");
 	if (!args.count("allow_methods"))
 		return make_pair(loc, methods);
 
@@ -93,7 +93,7 @@ pair<string, vector<string> > Core::parseMethod(map<string, string> args, string
 				if (tmp == list[i])
 					break;
 			}
-			if (!(tmp == "GET" || tmp == "HEAD"))
+			if (!(tmp == "GET"))
 				methods.push_back(tmp);
 			tmp.clear();
 		}
@@ -111,7 +111,7 @@ pair<string, vector<string> > Core::parseMethod(map<string, string> args, string
 		if (tmp == list[i])
 			break;
 	}
-	if (!(tmp == "GET" || tmp == "HEAD"))
+	if (!(tmp == "GET"))
 		methods.push_back(tmp);
 	tmp.clear();
 	return make_pair(loc, methods);
@@ -122,7 +122,6 @@ vector<string> Core::parseMethod(string parsed, string path, int n)
 	vector<string> methods;
 
 	methods.push_back("GET");
-	methods.push_back("HEAD");
 
 	string list[] = {"GET", "HEAD", "POST", "PUT", "DELETE"};
 
@@ -144,7 +143,7 @@ vector<string> Core::parseMethod(string parsed, string path, int n)
 				if (tmp == list[i])
 					break;
 			}
-			if (!(tmp == "GET" || tmp == "HEAD"))
+			if (!(tmp == "GET"))
 				methods.push_back(tmp);
 			tmp.clear();
 		}
@@ -162,7 +161,7 @@ vector<string> Core::parseMethod(string parsed, string path, int n)
 		if (tmp == list[i])
 			break;
 	}
-	if (!(tmp == "GET" || tmp == "HEAD"))
+	if (!(tmp == "GET"))
 		methods.push_back(tmp);
 	tmp.clear();
 	return methods;
@@ -462,7 +461,7 @@ void Core::parseServer(int fd, string line, string path, int *numb)
 	if (!allowed.size())
 	{
 		allowed.push_back("GET");
-		allowed.push_back("HEAD");
+		//allowed.push_back("HEAD");
 	}
 	*numb = n;
 	_t_preServ preServ = {_pre_Serv.size(), port, name, root, error_pages, locations, index, methods, allowed};
@@ -544,10 +543,11 @@ Core::Core(string path)
 			line.clear();
 		}
 	}
-
+	pthread_mutex_t	*logger = new pthread_mutex_t;
+	pthread_mutex_init(logger, NULL);
 	close(fd);
 	for (size_t j = 0; j < _pre_Serv.size(); j++)
-		_servers.push_back(new Server(_pre_Serv[j]));
+		_servers.push_back(new Server(_pre_Serv[j], logger));
 	for (int i = 0; i < _count_workers; i++)
 	{
 		Worker *worker = new Worker(i);
