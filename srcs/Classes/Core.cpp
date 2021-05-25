@@ -627,6 +627,16 @@ Core &Core::operator=(const Core & other)
 	return *this;
 }
 
+// Check if the client exist with a socket as entry parameter
+bool Core::exists(int socket)
+{
+	list<Client>::iterator begin = _clients.begin();
+	while (begin != _clients.end())
+		if (begin->getSocket() == socket)
+			return (true);
+	return (false);
+}
+
 int Core::getCountWorkers() { return _count_workers; }
 map<int, Worker *> &Core::getWorkers() { return _workers; }
 vector<Server *> Core::getServers() { return _servers; }

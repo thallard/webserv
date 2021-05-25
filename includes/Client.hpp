@@ -15,12 +15,16 @@ public:
 	Client &operator=(const Client &);
 	~Client();
 
+	// Setters and getters
 	int getSocket() { return _socket; }
 	int getId() { return _id; }
 	string getContent() { return _content; }
 	void setSocket(int socket) { _socket = socket; }
 	void setId(int id) { _id = id; }
 	void setContent(string content) { _content = content; }
+
+	bool exists(int socket);
+	bool readContent();
 };
 
 
