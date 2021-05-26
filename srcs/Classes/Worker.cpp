@@ -3,6 +3,8 @@
 Worker::Worker()
 {
 	is_available = true;
+	this->server = NULL;
+	this->socket = 0;
 	thread = new pthread_t;
 }
 
@@ -17,7 +19,6 @@ Worker::Worker(int id)
 
 Worker::~Worker()
 {
-	dprintf(1, "destructor %d\n", getId());
 	delete thread;
 }
 

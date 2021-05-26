@@ -17,13 +17,16 @@ class Core
 		vector<Server *> _servers;
 		vector<_t_preServ> _pre_Serv;
 		map<int, Worker *> _workers;
-		list<Client> _clients;
+		
 		Core();
 		void setWorkers(string);
 		
 		void parseServer(int, string, string, int *);
 		pair<string, vector<string> > parseMethod(map<string, string>, string, string, int);
+		vector<string> newparseMethod(map<string, string>, string, string, int);
 		vector<string> parseMethod(string, string, int);
+
+		void addToLoc(map<string, string> ,vector<string>,string, t_loc *, string, int);
 
 		int _i;
 	public:
@@ -45,7 +48,8 @@ class Core
 		int getIdServer() { return _i; }
 
 		// Client part
-		bool exists(int socket);
+		
+		
 
 };
 

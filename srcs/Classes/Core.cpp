@@ -61,6 +61,91 @@ bool is_not_whitespace(string line)
 
 // PARSING INDEPENDANT ================================================================================
 
+void Core::addToLoc(map<string, string> loc, vector<string> meth, string path, t_loc *root, string dir, int n)
+{
+	(void)loc;
+	(void)meth;
+	string save = path;
+	cout << "delimitation : " << path << endl;
+	t_loc *child;
+	t_loc *parent;
+
+	child = root;
+	size_t pos = 0;
+
+	string token;
+	while ((pos = path.find("/")) != string::npos)
+	{
+		if (path[0] == '/')
+		{
+			path.erase(0, 1);
+			continue;
+		}
+
+		token = path.substr(0, pos);
+		if(token.size())
+		{
+			cout << token << endl;
+			parent = child;
+				for (list<t_loc *>::iterator it = child->childs.begin(); it != child->childs.end(); it++)
+				{
+					if ((*it)->path == token)
+					{
+						cout << "\e[92mfound: " << token << " in -> " << parent->path << "\e[0m" <<endl;
+						child = *it;
+						break;
+					}
+				}
+			if (child == parent)
+			{
+				cout << "\e[91mnot found: " << token << " in -> " << parent->path << "\e[0m" << endl;
+				t_loc *new_child = new t_loc();
+				new_child->path = token;
+				parent->childs.push_front(new_child);
+				child = *parent->childs.begin();
+				child->parent = parent;
+			}
+		}
+		path.erase(0, pos + 1);
+	}
+	cout << path << endl;
+	if (path.size())
+	{
+	parent = child;
+		if (child->childs.size())
+		{
+			for (list<t_loc *>::iterator it = child->childs.begin(); it != child->childs.end(); it++)
+			{
+				if ((*it)->path == path)
+				{
+					if (child->options.methods.size())
+					{
+						cout << "\e[91m[\e[1;39m" << save << "\e[91m] duplicate location \e[1;91m" << dir << ":" << n << "\e[0m" << endl;
+						exit(1);
+					}
+					cout << "\e[92mfound: " << token << " in -> " << parent->path << " but was not set\e[0m" <<endl;
+					child->options.methods = meth;
+					child->options.params = loc;
+					child = *it;
+					break;
+				}
+			}
+		}
+		if (child == parent)
+		{
+			cout << "\e[91mnot found: " << path << " in -> " << parent->path << "\e[0m" << endl;
+			t_loc *new_child = new t_loc();
+			new_child->path = path;
+			parent->childs.push_front(new_child);
+			child = *parent->childs.begin();
+			child->options.methods = meth;
+			child->options.params = loc;
+			child->parent = parent;
+		}
+	}
+	cout << "=============" << endl;
+}
+
 pair<string, vector<string> > Core::parseMethod(map<string, string> args, string loc, string path, int n)
 {
 	vector<string> methods;
@@ -117,6 +202,63 @@ pair<string, vector<string> > Core::parseMethod(map<string, string> args, string
 	return make_pair(loc, methods);
 }
 
+vector<string>Core::newparseMethod(map<string, string> args, string loc, string path, int n)
+{
+	vector<string> methods;
+	(void)loc;
+
+	methods.push_back("GET");
+	//methods.push_back("HEAD");
+	if (!args.count("allow_methods"))
+		return methods;
+
+	cout << "go" << endl;
+
+	string list[] = {"GET", "HEAD", "POST", "PUT", "DELETE"};
+
+	string parsed = args.find("allow_methods")->second;
+	string tmp;
+
+	for (string::iterator it = parsed.begin(); it != parsed.end(); it++)
+	{
+		if ((*it >= 9 && *it <= 13) || *it == ' ' || *it == ',')
+		{
+			if (!tmp.size())
+				continue;
+			for (size_t i = 0; i < 7; i++)
+			{
+				if (i == 6)
+				{
+					cout << "\e[91m[\e[1;39m" << tmp << "\e[91m] is an unexcepted method in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+					exit(1);
+				}
+				if (tmp == list[i])
+					break;
+			}
+			if (!(tmp == "GET"))
+				methods.push_back(tmp);
+			tmp.clear();
+		}
+		else
+			tmp.push_back(*it);
+	}
+
+	for (size_t i = 0; i < 7; i++)
+	{
+		if (i == 6)
+		{
+			cout << "\e[91m[\e[1;39m" << tmp << "\e[91m] is an unexcepted method in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+			exit(1);
+		}
+		if (tmp == list[i])
+			break;
+	}
+	if (!(tmp == "GET"))
+		methods.push_back(tmp);
+	tmp.clear();
+	return methods;
+}
+
 vector<string> Core::parseMethod(string parsed, string path, int n)
 {
 	vector<string> methods;
@@ -165,6 +307,74 @@ vector<string> Core::parseMethod(string parsed, string path, int n)
 		methods.push_back(tmp);
 	tmp.clear();
 	return methods;
+}
+
+map<string, string> newparseLocation(int fd, int *numb, string path, string line)
+{
+	string loc = get_val(line);
+	map<string, string> params;
+
+	line.clear();
+
+	bool in = false;
+	bool start = false;
+
+	int ret;
+	int n = *numb;
+
+	char c;
+
+	while ((ret = read(fd, &c, 1)) > 0)
+	{
+		if (c == '#')
+			while ((ret = read(fd, &c, 1)) > 0)
+				if (c == '\n')
+					break;
+		if (c == '\t')
+			continue;
+		if (c != '\n')
+			line.push_back(c);
+		else
+		{
+			if (!start && line.find_first_of('{') != line.npos)
+			{
+				line.clear();
+				start = true;
+				;
+				in = true;
+				continue;
+			}
+			else if (line.find_first_of('}') != line.npos)
+			{
+				if (!start)
+				{
+					cout << "\e[91mmissing '\e[1;91m{\e[0;91m' in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+					exit(1);
+				}
+				in = false;
+				break;
+			}
+			else if (!is_not_whitespace(line))
+			{
+				line.clear();
+				continue;
+			}
+			else
+			{
+				params.insert(make_pair(get_key(line), get_val(line)));
+				//DEBUG cout << "\e[97mlocation params registered: " << line << "\e[0m" << endl;
+				line.clear();
+			}
+		}
+	}
+	if (in)
+	{
+		cout << "\e[91mmissing '\e[1;91m}\e[0;91m' in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+		exit(1);
+	}
+	if (!params.count("index"))
+		params.insert(make_pair("index", "index.html"));
+	return params;
 }
 
 pair<string, map<string, string> > parseLocation(int fd, int *numb, string path, string line)
@@ -307,6 +517,21 @@ map<int, string> parseErrorPages(int fd, int *numb, map<int, string> default_pag
 	return default_pages;
 }
 
+void printLoc(t_loc *root)
+{
+	t_loc *tmp = root;
+
+	cout << root->path << endl;
+	for(list<t_loc *>::iterator it = tmp->childs.begin(); it != tmp->childs.end(); it++)
+	{
+		cout << " |" << endl << " L-> " <<  (*it)->path << endl;
+		for(list<t_loc *>::iterator ite = (*it)->childs.begin(); ite != (*it)->childs.end(); ite++)
+		{
+			cout << "    |" << endl << "    L-> " <<  (*ite)->path << endl;
+		}
+
+	}
+}
 void Core::setWorkers(string line)
 {
 	int nb = 0;
@@ -340,6 +565,10 @@ void Core::parseServer(int fd, string line, string path, int *numb)
 	int n = *numb;
 
 	char c;
+
+	t_loc *loc = new t_loc();
+	loc->path = "/";
+	loc->parent = NULL;
 
 	string name = "default_server";
 	string root = "./default";
@@ -431,8 +660,9 @@ void Core::parseServer(int fd, string line, string path, int *numb)
 							i = 7;
 							break;
 						case 4:
-							locations.insert(parseLocation(fd, &n, path, line));
-							methods.insert(parseMethod(locations.find(get_val(line))->second, get_val(line), path, n));
+							//locations.insert(parseLocation(fd, &n, path, line));
+							//methods.insert(parseMethod(locations.find(get_val(line))->second, get_val(line), path, n));
+							addToLoc(newparseLocation(fd, &n, path, line), newparseMethod(locations.find(get_val(line))->second, get_val(line), path, n), get_val(line), loc, path, n);
 							i = 7;
 							break;
 						case 5:
@@ -463,8 +693,10 @@ void Core::parseServer(int fd, string line, string path, int *numb)
 		allowed.push_back("GET");
 		//allowed.push_back("HEAD");
 	}
+cout << name << endl;
+	printLoc(loc);
 	*numb = n;
-	_t_preServ preServ = {_pre_Serv.size(), port, name, root, error_pages, locations, index, methods, allowed};
+	_t_preServ preServ = {_pre_Serv.size(), port, name, root, error_pages, locations, index, methods, allowed, loc};
 
 	_pre_Serv.push_back(preServ);
 }
@@ -543,7 +775,7 @@ Core::Core(string path)
 			line.clear();
 		}
 	}
-	pthread_mutex_t	*logger = new pthread_mutex_t;
+	pthread_mutex_t *logger = new pthread_mutex_t;
 	pthread_mutex_init(logger, NULL);
 	close(fd);
 	for (size_t j = 0; j < _pre_Serv.size(); j++)
@@ -563,61 +795,61 @@ Core::~Core()
 }
 
 // Hearth of webserv
-void Core::run(map<int, Worker *> &workers, int count)
-{
-	struct timeval tv;
-	tv.tv_usec = 0;
-	tv.tv_sec = 20;
-	// _count_requests = 0;
-	// (void)workers[count];
+// void Core::run(map<int, Worker *> &workers, int count)
+// {
+// 	struct timeval tv;
+// 	tv.tv_usec = 0;
+// 	tv.tv_sec = 20;
+// 	// _count_requests = 0;
+// 	// (void)workers[count];
 
-	while (1)
-	{
-		size_t i = 0;
-		for (i = 0; i < getServers().size(); i++)
-		{
-			// Prepare variables for current server
-			socklen_t clilen = sizeof(getServers().at(i)->getCliAddr());
-			sockaddr_in cli_addr = getServers().at(i)->getCliAddr();
-			fd_set write_fds = getServers().at(i)->getWriteFD();
-			fd_set read_fds = getServers().at(i)->getReadFD();
-			fd_set write_fds2 = getServers().at(i)->getWriteFD();
-			fd_set read_fds2 = getServers().at(i)->getReadFD();
-			for (int l = 0; l < count; l++)
-				workers.find(l)->second->setSocket(0);
-			if (select(getServers().at(i)->getSocket() + 1, &read_fds2, &write_fds2, NULL, &tv) > 0)
-			{
-				// Search for an available worker
-				int j;
-				while (1)
-				{
-					j = 0;
+// 	while (1)
+// 	{
+// 		size_t i = 0;
+// 		for (i = 0; i < getServers().size(); i++)
+// 		{
+// 			// Prepare variables for current server
+// 			socklen_t clilen = sizeof(getServers().at(i)->getCliAddr());
+// 			sockaddr_in cli_addr = getServers().at(i)->getCliAddr();
+// 			fd_set write_fds = getServers().at(i)->getWriteFD();
+// 			fd_set read_fds = getServers().at(i)->getReadFD();
+// 			fd_set write_fds2 = getServers().at(i)->getWriteFD();
+// 			fd_set read_fds2 = getServers().at(i)->getReadFD();
+// 			for (int l = 0; l < count; l++)
+// 				workers.find(l)->second->setSocket(0);
+// 			if (select(getServers().at(i)->getSocket() + 1, &read_fds2, &write_fds2, NULL, &tv) > 0)
+// 			{
+// 				// Search for an available worker
+// 				int j;
+// 				while (1)
+// 				{
+// 					j = 0;
 
-					while (workers.find(j)->second->getStatus() && j < count - 1)
-						j++;
-					if (workers.find(j)->second->getStatus())
-						break;
-				}
-				workers.find(j)->second->setServer(getServers().at(i));
-				workers.find(j)->second->setSocket(22);
-				if (!FD_ISSET(getServers().at(i)->getSocket(), &write_fds) || !FD_ISSET(getServers().at(i)->getSocket(), &read_fds))
-					// error("ERROR non-set socket");
-					;
-				int newsockfd = accept(getServers().at(i)->getSocket(), (struct sockaddr *)&cli_addr, &clilen);
-				// if (newsockfd < 0)
-				// 	error("ERROR on accept");
-					cout << "jen ressors jamais1 " << endl;
-				getServers().at(i)->handle_request(newsockfd);
-				cout << "jen ressors jamais2 " <<endl;
-				close(newsockfd);
-			}
-			else
-				getServers().at(i)->log("\e[1;96m[IDLING]\e[0m");
-		}
-	}
-}
+// 					while (workers.find(j)->second->getStatus() && j < count - 1)
+// 						j++;
+// 					if (workers.find(j)->second->getStatus())
+// 						break;
+// 				}
+// 				workers.find(j)->second->setServer(getServers().at(i));
+// 				workers.find(j)->second->setSocket(22);
+// 				if (!FD_ISSET(getServers().at(i)->getSocket(), &write_fds) || !FD_ISSET(getServers().at(i)->getSocket(), &read_fds))
+// 					// error("ERROR non-set socket");
+// 					;
+// 				int newsockfd = accept(getServers().at(i)->getSocket(), (struct sockaddr *)&cli_addr, &clilen);
+// 				// if (newsockfd < 0)
+// 				// 	error("ERROR on accept");
+// 					cout << "jen ressors jamais1 " << endl;
+// 				getServers().at(i)->handle_request(newsockfd);
+// 				cout << "jen ressors jamais2 " <<endl;
+// 				close(newsockfd);
+// 			}
+// 			else
+// 				getServers().at(i)->log("\e[1;96m[IDLING]\e[0m");
+// 		}
+// 	}
+// }
 
-Core &Core::operator=(const Core & other)
+Core &Core::operator=(const Core &other)
 {
 	//if (other == this)
 	//	return *this;
@@ -625,16 +857,6 @@ Core &Core::operator=(const Core & other)
 	_servers = other._servers;
 	_workers = other._workers;
 	return *this;
-}
-
-// Check if the client exist with a socket as entry parameter
-bool Core::exists(int socket)
-{
-	list<Client>::iterator begin = _clients.begin();
-	while (begin != _clients.end())
-		if (begin->getSocket() == socket)
-			return (true);
-	return (false);
 }
 
 int Core::getCountWorkers() { return _count_workers; }

@@ -1,5 +1,6 @@
 #include "Server.hpp"
 #include "Utils.hpp"
+#include "Client.hpp"
 
 Server::Server(int port)
 {
@@ -23,11 +24,8 @@ Server::Server(int port)
 
 	listen(_socket, 4096);
 
-	FD_ZERO(&_write_fds);
-	FD_ZERO(&_read_fds);
-
-	FD_SET(_socket, &_write_fds);
-	FD_SET(_socket, &_read_fds);
+	FD_ZERO(&_clients_fd);
+	FD_SET(_socket, &_clients_fd);
 }
 
 Server::Server(_t_preServ pre, pthread_mutex_t *logger)
@@ -35,7 +33,6 @@ Server::Server(_t_preServ pre, pthread_mutex_t *logger)
 	// Init thread
 	thread = new pthread_t;
 	_logger = logger;
-	cout << hex << (long)logger << endl;
 	_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (_socket < 0)
 		perror("ERROR opening socket");
@@ -55,11 +52,9 @@ Server::Server(_t_preServ pre, pthread_mutex_t *logger)
 
 	listen(_socket, 4096);
 
-	FD_ZERO(&_write_fds);
-	FD_ZERO(&_read_fds);
+	FD_ZERO(&_clients_fd);
 
-	FD_SET(_socket, &_write_fds);
-	FD_SET(_socket, &_read_fds);
+	FD_SET(_socket, &_clients_fd);
 
 	_id = pre.id;
 	_name = pre.name;
@@ -69,6 +64,7 @@ Server::Server(_t_preServ pre, pthread_mutex_t *logger)
 	_index = pre.index;
 	_locations_methods = pre.methods;
 	_allowed = pre.allowed;
+	root = pre._root;
 }
 
 Server::~Server()
@@ -94,88 +90,110 @@ Server &Server::operator=(Server const &ref)
 	_index = ref._index;
 	_locations_methods = ref._locations_methods;
 	_allowed = ref._allowed;
+	root = ref.root;
 
 	return *this;
 }
 
-
-
-void Server::run(map<int, Worker *> & workers)
+// Hearth of the request for the server
+void Server::run(map<int, Worker *> &workers)
 {
-	// signal(SIGINT, this::signal_handle);
 	struct timeval tv = {1, 0};
-
-	_count_requests = 0;
-	int count = workers.size();
-	_workers = workers;
-	int idle = 0;
-
-	socklen_t clilen = sizeof(_cli_addr);
-
 	while (1)
 	{
-		fd_set write_fds2 = _write_fds;
-		fd_set read_fds2 = _read_fds;
-		for (int l = 0; l < count; l++)
-			workers.find(l)->second->setSocket(0);
-		if (select(_socket + 1, &read_fds2, &write_fds2, NULL, &tv) > 0)
+		fd_set temp_fd = _clients_fd;
+		if (select(_socket + 1, &temp_fd, NULL, NULL, &tv) > 0)
 		{
-			// Search for an available worker
-			int i = 0;
-			while (1)
-			{
-				i = 0;
-				while (!workers.find(i)->second->getStatus() && i < count - 1)
-					i++;
-				if (workers.find(i)->second->getStatus())
-					break;
-				cout << "jboucle inf ici mais ca a pas de sens c si la\n";
-			}
-			if (!FD_ISSET(_socket, &_write_fds) || !FD_ISSET(_socket, &_read_fds))
-				error("ERROR non-set socket");
-			int newsockfd = accept(_socket, (struct sockaddr *)&_cli_addr, &clilen);
-		//	sleep(10);
-			if (newsockfd < 0)
-				error("ERROR on accept");
-			workers.find(i)->second->setServer(this);
-			workers.find(i)->second->setStatus(false);
-			workers.find(i)->second->setSocket(newsockfd);
-	
-			// handle_request(newsockfd);
-			 while (!workers.find(i)->second->getStatus())
-			 	;
-		
-			//close(newsockfd);
+			int index = findAvailableWorker(workers);
+			workers.find(index)->second->setServer(this);
+			while (!workers.find(index)->second->getStatus())
+				;
 		}
-		else if (idle == 30)
-		{
-			log("\e[1;96m[IDLING]\e[0m");
-			idle = 0;
-		}
+			
 		else
-			idle++;
+			log("\e[1;96m[IDLING]\e[0m");
 	}
+
+	// // signal(SIGINT, this::signal_handle);
+	// struct timeval tv = {1, 0};
+
+	// _count_requests = 0;
+	// int count = workers.size();
+	// _workers = workers;
+	// int idle = 0;
+
+	// socklen_t clilen = sizeof(_cli_addr);
+
+	// while (1)
+	// {
+	// 	fd_set write_fds2 = _write_fds;
+	// 	fd_set read_fds2 = _read_fds;
+	// 	// for (int l = 0; l < count; l++)
+	// 	// 	workers.find(l)->second->setSocket(0);
+	// 	if (select(_socket + 1, &read_fds2, &write_fds2, NULL, &tv) > 0)
+	// 	{
+	// 		// Search for an available worker
+	// 		int i = 0;
+	// 		while (1)
+	// 		{
+	// 			i = 0;
+	// 			while (!workers.find(i)->second->getStatus() && i < count - 1)
+	// 				i++;
+	// 			if (workers.find(i)->second->getStatus())
+	// 				break;
+	// 			cout << "jboucle inf ici mais ca a pas de sens c si la\n";
+	// 		}
+	// 		if (!FD_ISSET(_socket, &_write_fds) || !FD_ISSET(_socket, &_read_fds))
+	// 			error("ERROR non-set socket");
+	// 		int newsockfd = accept(_socket, (struct sockaddr *)&_cli_addr, &clilen);
+	// 		if (newsockfd < 0)
+	// 			error("ERROR on accept");
+	// 		cout << "boucle inf ici ma caille4!\n";
+	// 		// Check for a existing client or a new one
+	// 		if (!exists(newsockfd, clients))
+	// 			error("Error during reading client socket part");
+	// 		cout << "boucle inf ici ma caille5!\n";
+	// 		workers.find(i)->second->setServer(this);
+	// 		workers.find(i)->second->setStatus(false);
+	// 		workers.find(i)->second->setSocket(newsockfd);
+	// 		cout << "boucle inf ici ma caille523!\n";
+	// 		// handle_request(newsockfd);
+	// 		while (!workers.find(i)->second->getStatus())
+	// 			;
+	// 		cout << "boucle inf ici ma caille512!\n";
+	// 		close(newsockfd);
+	// 	}
+	// 	else if (idle == 30)
+	// 	{
+	// 		log("\e[1;96m[IDLING]\e[0m");
+	// 		idle = 0;
+	// 	}
+	// 	else
+	// 		idle++;
+	// }
 }
 
-void Server::handle_request(int sock)
+void Server::handle_request(Client client)
 {
-
+	cout << "fdp de ta mere\n";
 	string type[] = {"GET", "POST", "HEAD", "PUT"};
 	string (Server::*command[])(map<string, string>, int) = {&Server::GET, &Server::POST, &Server::HEAD, &Server::PUT};
-	char buffer[4096];
-
+	string buffer = client.getContent();
+	int n;
 	// Read until header until is finished
-	bzero(buffer, 4096);
-	int n = read(sock, buffer, 4096);
-	 cout <<  "Request :" << endl << buffer << endl << "=====" << endl;
+	// bzero(buffer, 4096);
+	// int n = read(client->getSocket(), buffer, 4096);
+	cout << "Request :" << endl
+		 << buffer << endl
+		 << "=====" << endl;
 	// cout << "allo1\n";
 	Headers request;
-	request += string(buffer);
+	request += buffer;
 	string response;
 	map<string, string> p_request = request.last();
 
 	string req_type = p_request.find("Request-Type")->second;
-	// cout << "allo2\n";
+	cout << "allo2\n";
 	for (size_t i = 0; i <= type->size(); i++)
 	{
 		if (i == type->size())
@@ -185,79 +203,28 @@ void Server::handle_request(int sock)
 		}
 		if (!strcmp(req_type.c_str(), type[i].c_str()))
 		{
-		
+
 			if (check_methods(p_request))
-				response = (this->*command[i])(p_request, sock);
+				response = (this->*command[i])(p_request, client.getSocket());
 			else
 			{
 				log("\e[1;93mMethod Not Allowed!\e[0m");
 				response = SEND_ERROR(STATUS_METHOD_NOT_ALLOWED, "Method Not Allowed");
 			}
-			break ;
+			break;
 		}
-			
 	}
 	// cout << "allo3\n";
-	n = send(sock, response.c_str(), response.size(), MSG_DONTWAIT);
-	 //n = write(sock, response.c_str(), strlen(response.c_str()));
+	cout << endl
+		 << "La response ici : \n"
+		 << response << endl
+		 << endl;
+	n = write(client.getSocket(), response.c_str(), response.size());
+	//n = write(sock, response.c_str(), strlen(response.c_str()));
 	// cout << "allo4\n";
 	if (n < 0)
 		error("Can't send the response");
-	close(sock);
-
-	// TODO: CHECK HEADER
-
-	// HANDLING REQUEST
-
-	//=======================================
-
-	/*
-	int n;
-	ifstream file("default/index.html");
-	ostringstream text;
-	text << file.rdbuf();
-	
-	std::string response1 =
-		"\n\r" +
-		text.str();
-	char buffer[4096];
-	bzero(buffer, 4096);
-	n = read(sock, buffer, 4096);
-	// Test
-	Headers header;
-	header += string(buffer);
-	map<string, string>oui = header.last();
-	int status_code = 0;
-	status_code = header.check(oui);
-	cout << "\e[1;"<< 32 + _id <<"m [" << _id << "] Request #" << _count_requests++ << " " << oui.find("Request-Type")->second;
-	if (oui.find("Request-Type")->second == "POST")
-		cout << " | [" << oui.find("Content-Length")->second << "].\e[0;0m\n";
-	else
-		cout << "\e[0;0m\n";
-	// if (status_code != STATUS_OK)
-	// {
-	// 	//  string response = header.return_response_header(status_code, header);
-	// 	// n = write(sock, response.c_str(), strlen(response.c_str()));
-	// 	return ;
-	// }
-	if (!dispatcher_type_requests(oui))
-		;
-	 string response = header.return_response_header(status_code, header, text.str().size());
-	 response += response1;
-	// for(map<string, string>::iterator it = oui.begin(); it != oui.end(); it++)
-	// 	dprintf(1,"\e[92m%s\e[0m -> |\e[93m%s\e[0m|\n", it->first.c_str(), it->second.c_str());
-	std::string new_buffer(buffer);
-	
-	// Fin de test;
-	if (n < 0)
-		error("ERROR reading from socket");
-	//printf("\e[95mHere is the message:\n%s\e[0m\n", buffer);
-	n = send(sock, response.c_str(), strlen(response.c_str()), MSG_DONTWAIT);
-	// n = write(sock, response.c_str(), strlen(response.c_str()));
-		// dprintf(1, "combien tu as print mon coquin ? %d %lu\n", n, strlen(response.c_str()));
-	// cout << "HEADER RENVOYEE:\n" << response << "\e[0m" << endl;
-	if (n < 0)
-		error("ERROR writing to socket_nbet");*/
+	close(client.getSocket());
 }
 
 void Server::error(const char *s)
@@ -283,12 +250,12 @@ string Server::POST(map<string, string> header, int socket)
 	const char *content_char = header.find("Content")->second.c_str();
 	if (header.find("Content-Length")->second == "0")
 	{
-		return (tmp.return_response_header(STATUS_NO_CONTENT, tmp, 0 ));
+		return (tmp.return_response_header(STATUS_NO_CONTENT, tmp, 0));
 	}
 	// cout << content_char << endl;
 
 	const char *to_print = content_char;
-	
+
 	t_file file = getFile(header.find("Location")->second);
 	if (header.count("Content") && !header.find("Content")->second.size())
 		resp = SEND_ERROR(STATUS_NO_CONTENT, "No Content");
@@ -299,7 +266,7 @@ string Server::POST(map<string, string> header, int socket)
 	int nb_prints, fd = open("default/file.txt", O_TRUNC | O_WRONLY | O_NONBLOCK, 0777);
 	cout << "je crash ici\n";
 	// istringstream iss(header.find("Content-Length")->second);
-		cout << "je crash ici\n";
+	cout << "je crash ici\n";
 	size_t remaining_characters, count = 0;
 	remaining_characters = header.find("Content")->second.size();
 	while (count < remaining_characters)
@@ -347,29 +314,30 @@ string Server::HEAD(map<string, string> header, int socket)
 //A AMELIORER plus tard
 string Server::GET(map<string, string> header, int socket)
 {
+	cout << "je veux sortir sac a merde1\n";
 	(void)socket;
-	 log("\e[1;93m[GET -> " + header.find("Location")->second + "]\e[0m");
+	log("\e[1;93m[GET -> " + header.find("Location")->second + "]\e[0m");
 
-	t_file file = getFile(header.find("Location")->second);
+	// t_file file = getFile(header.find("Location")->second);
 	Headers tmp;
 	string resp;
 
-	if (file.content == "NOT FOUND" && file.size == 0)
-		resp = SEND_ERROR(STATUS_NOT_FOUND, "Not Found");
-	else if (header.count("coffee"))
+	// if (file.content == "NOT FOUND" && file.size == 0)
+	resp = SEND_ERROR(STATUS_NOT_FOUND, "Not Found");
+	if (header.count("coffee"))
 		resp = SEND_ERROR(STATUS_TEAPOT, "I'm a teapot");
 	else
 	{
-		resp = tmp.return_response_header(200, tmp, file.size);
-		resp += file.content;
+		resp = tmp.return_response_header(200, tmp, 0);
+		resp += "oui";
 	}
 	cout << "je veux sortir sac a merde\n";
 	return resp;
 }
 
-pair<string ,map<string, string> >Server::getConfLoc(string loc)
+pair<string, map<string, string> > Server::getConfLoc(string loc)
 {
-	map<string, map<string, string> >::iterator save  = _locations.find("/");
+	map<string, map<string, string> >::iterator save = _locations.find("/");
 	size_t max_found = loc.npos;
 	size_t pos;
 	map<string, map<string, string> >::iterator it = _locations.begin();
@@ -396,9 +364,7 @@ pair<string ,map<string, string> >Server::getConfLoc(string loc)
 t_file Server::getFile(string loc)
 {
 
-
-
-/*pair<string ,map<string, string> > match_p = getConfLoc(loc);
+	/*pair<string ,map<string, string> > match_p = getConfLoc(loc);
 	map<string, string> matched = match_p.second;
 	string parsed = _root;
 	if (*(--(parsed.end())) != '/')
@@ -406,7 +372,6 @@ t_file Server::getFile(string loc)
 	if (matched.count("root"))
 		parsed += matched.find("root")->second;
 	loc.replace(match_p.first.size());*/
-
 
 	map<string, map<string, string> >::iterator it = _locations.begin();
 
@@ -427,7 +392,7 @@ t_file Server::getFile(string loc)
 				it++;
 				continue;
 			}
-			//replace la location par la root de la location
+			// replace la location par la root de la location
 			if (it->second.count("root"))
 				loc.replace(pos, it->first.size(), it->second.find("root")->second);
 			parsed = loc;
@@ -447,7 +412,7 @@ t_file Server::getFile(string loc)
 	if (parsed == "")
 		parsed = _root + loc;
 
-//	cout << "Final Location: " << parsed << endl;
+	//	cout << "Final Location: " << parsed << endl;
 
 	int fd;
 	fd = open(parsed.c_str(), O_RDONLY | O_DIRECTORY | O_NONBLOCK);
@@ -519,7 +484,6 @@ void Server::log(string s)
 	cout << "\e[1;" << to_string(92 + _id) << "m[SERVER " << _id << "]\e[0m" << s << " \e[1;90m" << buffer << "\e[0m" << endl;
 
 	pthread_mutex_unlock(_logger);
-
 }
 
 bool Server::check_methods(map<string, string> req)
@@ -552,4 +516,48 @@ bool Server::check_methods(map<string, string> req)
 		if (methods == _allowed[i])
 			return true;
 	return false;
+}
+
+// Check if a client already exists with this socket
+int Server::exists(int socket, list<Client> &clients)
+{
+	bool found = false;
+	list<Client>::iterator begin = clients.begin();
+	while (begin != clients.end())
+	{
+		if (begin->getSocket() == socket)
+		{
+			if (!(begin->readContent()))
+				return (false);
+			found = true;
+		}
+		cout << "boucle inf ici ma caille!2\n";
+		begin++;
+	}
+	cout << "boucle inf ici ma caille!6" << found << "\n";
+	if (!found)
+	{
+		Client client(clients.size() + 1, socket);
+		cout << "avant read ta mere la cheinne\n";
+		if (!(client.readContent()))
+			return (false);
+		cout << "apres read ta mere la cheinne\n";
+		clients.push_back(client);
+	}
+	cout << "boucle inf ici ma caille!7\n";
+	return true;
+}
+
+int Server::findAvailableWorker(map<int, Worker *> &workers)
+{
+	size_t i = 0;
+	while (1)
+	{
+		i = 0;
+		while (!workers.find(i)->second->getStatus() && i < workers.size() - 1)
+			i++;
+		if (workers.find(i)->second->getStatus())
+			break;
+	}
+	return (i);
 }

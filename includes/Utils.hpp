@@ -44,6 +44,21 @@ using namespace std;
 
 #define DEFAULT_PORT 8080
 
+
+typedef struct s_options
+{
+	vector<string> methods;
+	map<string, string> params;
+}				t_options;
+
+typedef struct s_loc
+{
+	s_loc *parent;
+	string path;
+	list<s_loc *> childs;
+	t_options options;
+}				t_loc;
+
 typedef struct _s_preServ
 {
 	int id;
@@ -55,7 +70,9 @@ typedef struct _s_preServ
 	string index;
 	map<string, vector<string> > methods;
 	vector<string> allowed;
+	t_loc *_root;
 } 			_t_preServ;
+
 
 int dispatcher_type_requests(map<string, string> request);
 void *main_loop(void * arg);

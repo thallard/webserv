@@ -8,8 +8,8 @@ private:
 	int _socket;
 	int _id;
 	string _content;
-	Client();
 public:
+	Client();
 	Client(int, int);
 	Client(const Client &);
 	Client &operator=(const Client &);
