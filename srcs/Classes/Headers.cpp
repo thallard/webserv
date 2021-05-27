@@ -96,6 +96,9 @@ string Headers::return_response_header(int status, Headers header, size_t size_c
 	case STATUS_HEAD:
 		response = "HTTP/1.1 200 OK\r\n";
 		break;
+	case STATUS_BAD_REQUEST:
+		response = "HTTP/1.1 400 Bad Request\r\n";
+		break;
 	default:
 		break;
 	}

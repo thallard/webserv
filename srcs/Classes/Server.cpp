@@ -1,6 +1,15 @@
 #include "Server.hpp"
 #include "Utils.hpp"
 #include "Client.hpp"
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
 
 Server::Server(int port)
 {
@@ -23,48 +32,43 @@ Server::Server(int port)
 		perror("ERROR on binding");
 
 	listen(_socket, 4096);
-
-	FD_ZERO(&_clients_fd);
-	FD_SET(_socket, &_clients_fd);
 }
 
 Server::Server(_t_preServ pre, pthread_mutex_t *logger)
 {
 	// Init thread
-	thread = new pthread_t;
+	_id = pre.id;
 	_logger = logger;
+
+	log("\e[33;1m[Starting ...]");
+	thread = new pthread_t;
 	_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (_socket < 0)
 		perror("ERROR opening socket");
 
 	//IOCTL()
-	const int opt = 1;
-	setsockopt(_socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
-
+	int opt = 1;
+	setsockopt(_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt));
+	// ioctl(_socket, FIONBIO, (char *)&opt);
+	fcntl(_socket, F_SETFL, O_NONBLOCK);
 	//BIND()
 	bzero((char *)&_serv_addr, sizeof(_serv_addr));
 	_serv_addr.sin_family = AF_INET;
 	_serv_addr.sin_addr.s_addr = INADDR_ANY;
 	_serv_addr.sin_port = htons(pre.port);
 	if (bind(_socket, (struct sockaddr *)&_serv_addr,
-			 sizeof(_serv_addr)) < 0)
+			 sizeof(_serv_addr)))
 		perror("ERROR on binding");
 
 	listen(_socket, 4096);
 
 	FD_ZERO(&_clients_fd);
-
+	_max_sd = _socket;
 	FD_SET(_socket, &_clients_fd);
 
-	_id = pre.id;
 	_name = pre.name;
-	_root = pre.root;
 	_error_pages = pre.err;
-	_locations = pre.loc;
-	_index = pre.index;
-	_locations_methods = pre.methods;
-	_allowed = pre.allowed;
-	root = pre._root;
+	_root = pre._root;
 }
 
 Server::~Server()
@@ -84,13 +88,9 @@ Server &Server::operator=(Server const &ref)
 	_name = ref._name;
 	_root = ref._root;
 
-	_locations = ref._locations;
 	_error_pages = ref._error_pages;
 
-	_index = ref._index;
-	_locations_methods = ref._locations_methods;
-	_allowed = ref._allowed;
-	root = ref.root;
+	_root = ref._root;
 
 	return *this;
 }
@@ -98,18 +98,152 @@ Server &Server::operator=(Server const &ref)
 // Hearth of the request for the server
 void Server::run(map<int, Worker *> &workers)
 {
-	struct timeval tv = {1, 0};
+	(void)workers;
+	struct timeval tv = {100, 0};
+
+	// cout << "Server: " << _id << endl;
+	// getFile("/test/");
+	fd_set temp_fd;
+	log("\e[32;1m[Started !]");
 	while (1)
 	{
-		fd_set temp_fd = _clients_fd;
-		if (select(_socket + 1, &temp_fd, NULL, NULL, &tv) > 0)
+
+		int retval = 0;
+
+		memcpy(&temp_fd, &_clients_fd, sizeof(_clients_fd));
+		//temp_fd = _clients_fd;
+		_desc_ready = 0;
+		if ((retval = select(_max_sd + 1, &temp_fd, NULL, NULL, &tv)) > 0)
 		{
-			int index = findAvailableWorker(workers);
-			workers.find(index)->second->setServer(this);
-			while (!workers.find(index)->second->getStatus())
-				;
+			if (retval == -1)
+				error("select crash");
+			_desc_ready = 1;
+			// _max_sd = _socket;
+			bool connection_closed = false;
+			bool server_end = false;
+			// socklen_t clilen = sizeof(getCliAddr());
+
+			// pthread_mutex_lock(getLogger());
+			// // cout << "\e[1;96m[Worker " << to_string(w->getId()) << "]\e[0m";
+			// pthread_mutex_unlock(getLogger());
+
+			for (int fd = 1; fd <= _max_sd && _desc_ready > 0; fd++)
+			{
+				// cout << "je boucle ici " << fd << " == " << FD_ISSET(fd, &temp_fd) << "\n";
+				if (FD_ISSET(fd, &temp_fd))
+				{
+					_desc_ready -= 1;
+					if (fd == _socket)
+					{
+
+						int new_socket = 0;
+						do
+						{
+							new_socket = accept(_socket, NULL, NULL);
+							if (new_socket < 0)
+							{
+								if (errno != EWOULDBLOCK)
+								{
+									perror("Accept failed");
+									server_end = true;
+								}
+								// cout << "oh la con de am tamere\n";
+								break;
+							}
+							log("\e[1;94m[New incoming connection socket(" + to_string(fd) + ")]\e[0;0m");
+							FD_SET(new_socket, &_clients_fd);
+							if (new_socket > _max_sd)
+								_max_sd = new_socket;
+
+							// cout << " gros fil de pute : " << FD_ISSET(130, &_clients_fd) << " et lature " << new_socket <<  " et le fd " << fd << endl;
+						} while (new_socket != -1);
+						// cout << "oh la con de am tamere\n";
+					}
+					else
+					{
+						fcntl(fd, F_SETFL, O_NONBLOCK);
+						Client client(getClients().size(), fd);
+						connection_closed = false;
+						int nbytes_read;
+						string buff;
+						char buffer[4096];
+						bzero(buffer, 4096);
+						do
+						{
+							int len_before_recv = sizeof(buffer);
+							usleep(50);
+							nbytes_read = recv(fd, buffer, sizeof(buffer), MSG_DONTWAIT);
+							log("\e[1;93m[recv() read " + to_string(nbytes_read) + " characters]\e[0;0m");
+							cout << buffer << endl;
+							buff += buffer;
+
+							bzero(buffer, 4096);
+							client.setContent(client.getContent() + string(buffer));
+							if (nbytes_read < 1 && nbytes_read < len_before_recv)
+							{
+								cout << buff << endl;
+								connection_closed = true;
+								// nbytes_read = send(fd, buffer, strlen(buffer), MSG_DONTWAIT);
+								// log("\e[1;93m[send() wrote " + to_string(nbytes_read) + " characters]\e[0;0m");
+								
+								// if (nbytes_read < 0)
+								// {
+								// 	perror("error dans le sud\n");
+								// 	server_end = true;
+
+								// 	break;
+								// }
+								cout << nbytes_read << endl;
+								// cout << (int)buffer[strlen(buffer) + 1] << " " << (int)buffer[strlen(buffer) - 1] << " " << (int)buffer[strlen(buffer) - 2] << " " << (int)buffer[strlen(buffer) -3] << " " <<(int) buffer[strlen(buffer)- 4] << endl;
+								 //if (strncmp(buffer + (strlen(buffer) - 3), "\r\n", 2))
+								 //	continue ;
+								//cout << (int)buffer[strlen(buffer) + 1] << " " << (int)buffer[strlen(buffer) - 1] << " " << (int)buffer[strlen(buffer) - 2] << " " << (int)buffer[strlen(buffer) -3] << " " <<(int) buffer[strlen(buffer)- 4] << endl;
+								client.setContent(buff);
+								handle_request(client);
+							
+								break;
+							}
+							if (nbytes_read < 0)
+							{
+								if (errno != EWOULDBLOCK)
+								{
+									perror("recv() failed\n");
+									server_end = true;
+								}
+								break;
+							}
+							// nbytes_read = send(fd, buffer, sizeof(buffer), MSG_DONTWAIT);
+							// if (nbytes_read < 0)
+							// {
+							// 	perror("error dans le sud\n");
+							// 	server_end = true;
+							// 	break;
+							// }
+						
+						} while (true);
+						//cout << "oui connection clsoed = " << connection_closed << endl;;
+						if (connection_closed)
+						{
+							//Headers test;
+							//test += buff;
+							log("\e[1;31m[Connection closed]\e[0m");
+							//cout << "\e[31m JE CLOSE \e[0m" << endl;
+						//	if(!test.last().count("Connection") || test.last().find("Connection")->second.find("keep-alive"))
+								close(fd);
+							FD_CLR(fd, &_clients_fd);
+							if (fd == _max_sd)
+							{
+								while (!FD_ISSET(_max_sd, &_clients_fd))
+									_max_sd -= 1;
+							}
+						}
+					}
+				}
+				// else
+				// 	cout << "oh mama jai pas trouve le fd la...\n";
+			}
 		}
-			
+
 		else
 			log("\e[1;96m[IDLING]\e[0m");
 	}
@@ -173,19 +307,110 @@ void Server::run(map<int, Worker *> &workers)
 	// }
 }
 
-void Server::handle_request(Client client)
+t_loc *Server::findInLoc(string s, t_loc *root)
 {
-	cout << "fdp de ta mere\n";
+	for (list<t_loc *>::iterator it = root->childs.begin(); it != root->childs.end(); it++)
+		if ((*it)->path == s)
+			return (*it);
+	return (NULL);
+}
+
+t_find Server::findAllLoc(string path)
+{
+	size_t pos;
+
+	string split;
+
+	t_loc *tmp = _root;
+
+	t_find founded = {_root, ""};
+
+	while ((pos = path.find("/")) != string::npos)
+	{
+		if (path[0] == '/')
+		{
+			founded.path += "/";
+			path.erase(0, 1);
+			continue;
+		}
+		split = path.substr(0, pos);
+		tmp = findInLoc(split, tmp);
+		if (!tmp)
+			return founded;
+		founded.path += split + "/";
+		founded.loc = tmp;
+		path.erase(0, pos + 1);
+	}
+	tmp = findInLoc(path, tmp);
+	if (!tmp)
+		return founded;
+	founded.path += path;
+	founded.loc = tmp;
+	return founded;
+}
+
+t_file Server::getFile(string path)
+{
+	t_file file = {"", -1};
+	t_find founded = findAllLoc(path);
+	int fd;
+
+//	cout << "founded:  " << founded.path << endl;
+
+	size_t pos = founded.path.size();
+	if (pos == 1)
+		pos--;
+
+	path.erase(0, pos);
+
+	//cout << "path sub: " << path << endl;
+	//cout << "root:     " << founded.loc->options.params.find("root")->second << endl;
+
+	path = founded.loc->options.params.find("root")->second + path;
+	//cout << "final:    " << path << endl;
+
+	//Rajouter if auto-index
+	if ((fd = open(path.c_str(), O_RDONLY | O_NONBLOCK | O_DIRECTORY)) != -1)
+	{
+		if (!founded.loc->options.params.count("index"))
+		{
+			cout << "Directory !" << endl;
+			close(fd);
+			return file;
+		}
+		else
+			path += founded.loc->options.params.find("index")->second;
+		close(fd);
+	}
+	//cout << "2:    " << path << endl;
+	if ((fd = open(path.c_str(), O_RDONLY | O_NONBLOCK)) == -1)
+	{
+		cout << "Not Found !" << endl;
+		return file;
+	}
+	cout << "Found !" << endl;
+	char c;
+	file.content.clear();
+	while (read(fd, &c, 1))
+		file.content.push_back(c);
+	file.size = file.content.size();
+	close(fd);
+	return file;
+}
+
+void Server::handle_request(Client &client)
+{
+	// cout << "fdp de ta mere\n";
 	string type[] = {"GET", "POST", "HEAD", "PUT"};
 	string (Server::*command[])(map<string, string>, int) = {&Server::GET, &Server::POST, &Server::HEAD, &Server::PUT};
 	string buffer = client.getContent();
 	int n;
 	// Read until header until is finished
 	// bzero(buffer, 4096);
-	// int n = read(client->getSocket(), buffer, 4096);
-	cout << "Request :" << endl
-		 << buffer << endl
-		 << "=====" << endl;
+	// // int n = read(client->getSocket(), buffer, 4096);
+	// cout << "Request :" << endl
+	// 	 << buffer << endl
+	// 	 << "=====" << endl;
 	// cout << "allo1\n";
 	Headers request;
 	request += buffer;
@@ -198,13 +423,13 @@ void Server::handle_request(Client client)
 	{
 		if (i == type->size())
 		{
-			response = "404"; // change with bad formated header
+			response = SEND_ERROR(STATUS_BAD_REQUEST, "Bad Request");
 			break;
 		}
 		if (!strcmp(req_type.c_str(), type[i].c_str()))
 		{
 
-			if (check_methods(p_request))
+			if (check_methods(findAllLoc(p_request.find("Location")->second).loc, req_type))
 				response = (this->*command[i])(p_request, client.getSocket());
 			else
 			{
@@ -219,12 +444,14 @@ void Server::handle_request(Client client)
 		 << "La response ici : \n"
 		 << response << endl
 		 << endl;
-	n = write(client.getSocket(), response.c_str(), response.size());
+	cout << client.getSocket() << " et la taille : " << client.getContent().size() << endl;
+	cout << "\e[31m JE WRITE \e[0m";
+	n = send(client.getSocket(), response.c_str(), response.size(), MSG_DONTWAIT);
 	//n = write(sock, response.c_str(), strlen(response.c_str()));
 	// cout << "allo4\n";
 	if (n < 0)
 		error("Can't send the response");
-	close(client.getSocket());
+	// close(client.getSocket());
 }
 
 void Server::error(const char *s)
@@ -318,131 +545,27 @@ string Server::GET(map<string, string> header, int socket)
 	(void)socket;
 	log("\e[1;93m[GET -> " + header.find("Location")->second + "]\e[0m");
 
-	// t_file file = getFile(header.find("Location")->second);
+	t_file file = getFile(header.find("Location")->second);
 	Headers tmp;
 	string resp;
 
-	// if (file.content == "NOT FOUND" && file.size == 0)
-	resp = SEND_ERROR(STATUS_NOT_FOUND, "Not Found");
-	if (header.count("coffee"))
+
+
+	if (file.size == -1)
+		resp = SEND_ERROR(STATUS_NOT_FOUND, "Not Found");
+	else if (header.count("coffee"))
 		resp = SEND_ERROR(STATUS_TEAPOT, "I'm a teapot");
 	else
 	{
 		resp = tmp.return_response_header(200, tmp, 0);
-		resp += "oui";
+		resp += file.content;
 	}
 	cout << "je veux sortir sac a merde\n";
 	return resp;
 }
 
-pair<string, map<string, string> > Server::getConfLoc(string loc)
-{
-	map<string, map<string, string> >::iterator save = _locations.find("/");
-	size_t max_found = loc.npos;
-	size_t pos;
-	map<string, map<string, string> >::iterator it = _locations.begin();
-
-	for (; it != _locations.end(); it++)
-	{
-		pos = loc.rfind(it->first);
-		if (max_found == loc.npos)
-		{
-			max_found = pos;
-			save = it;
-		}
-		else if (max_found != loc.npos && pos != loc.npos && pos > max_found)
-		{
-			max_found = pos;
-			save = it;
-		}
-	}
-	return *save;
-}
-
 // SOUCIS: si on  location /foo/ et location /foo/bar/ dans le .conf et aue l'url est /foo/bar/, il va chopper /foo/
 // il faut donc le comparer avec tout et prendre celui avec le + de char correspondant
-t_file Server::getFile(string loc)
-{
-
-	/*pair<string ,map<string, string> > match_p = getConfLoc(loc);
-	map<string, string> matched = match_p.second;
-	string parsed = _root;
-	if (*(--(parsed.end())) != '/')
-		parsed += "/";
-	if (matched.count("root"))
-		parsed += matched.find("root")->second;
-	loc.replace(match_p.first.size());*/
-
-	map<string, map<string, string> >::iterator it = _locations.begin();
-
-	size_t pos = loc.npos;
-	string parsed = "";
-
-	// FIND IF THE START OF THE URL IS PRESENT IN Core
-
-	for (size_t i = 0; i < _locations.size(); i++)
-	{
-		//rfind = find prefix (si dans l'url /foo/bar/ je trouve la location /foo/ alors pos != npos)
-		pos = loc.rfind(it->first, 0);
-		if (pos != loc.npos)
-		{
-			// SKIP BECAUSE IT MATCH IF IN CONF WE HAVE location: / && location: /foo IT GOES TO / EVEN IF THE URL CONTAINS /foo
-			if (_locations.size() > 1 && it->first == "/")
-			{
-				it++;
-				continue;
-			}
-			// replace la location par la root de la location
-			if (it->second.count("root"))
-				loc.replace(pos, it->first.size(), it->second.find("root")->second);
-			parsed = loc;
-			break;
-		}
-		it++;
-	}
-	// RE-GET THE / LOCATION IF NO OTHER HAS BEEN FOUND
-	if (parsed == "" && _locations.count("/"))
-	{
-		if (_locations.find("/")->second.count("root"))
-			loc.replace(0, 1, _locations.find("/")->second.find("root")->second);
-		parsed = loc;
-	}
-
-	// IF NOT, GET THE DEFAULT ROOT
-	if (parsed == "")
-		parsed = _root + loc;
-
-	//	cout << "Final Location: " << parsed << endl;
-
-	int fd;
-	fd = open(parsed.c_str(), O_RDONLY | O_DIRECTORY | O_NONBLOCK);
-	if (fd != -1)
-	{
-		if (pos != loc.npos)
-			parsed += it->second.find("index")->second;
-		else
-			parsed += _index;
-	}
-	close(fd);
-
-	//cout << "Final Location after directory: " << parsed << endl;
-
-	fd = open(parsed.c_str(), O_RDONLY | O_NONBLOCK);
-	if (fd < 3)
-	{
-		close(fd);
-		t_file not_found = {"NOT FOUND", 0};
-		return not_found;
-	}
-	string page;
-	int ret;
-	char c;
-	while ((ret = read(fd, &c, 1)) > 0)
-		page.push_back(c);
-	close(fd);
-	t_file file = {page, page.size()};
-	return file;
-}
 
 // Generate a default error page -- TODO: add conf errors page
 string Server::SEND_ERROR(int status, const char *msg)
@@ -481,39 +604,15 @@ void Server::log(string s)
 
 	info = localtime(&t);
 	strftime(buffer, sizeof buffer, "[%c]", info);
-	cout << "\e[1;" << to_string(92 + _id) << "m[SERVER " << _id << "]\e[0m" << s << " \e[1;90m" << buffer << "\e[0m" << endl;
+	cout << "\e[1;" << to_string(93 + _id) << "m[SERVER " << _id << "]\e[0m" << s << " \e[1;90m" << buffer << "\e[0m" << endl;
 
 	pthread_mutex_unlock(_logger);
 }
 
-bool Server::check_methods(map<string, string> req)
+bool Server::check_methods(t_loc *root, string meth)
 {
-	string methods = req.find("Request-Type")->second;
-	string loc = req.find("Location")->second;
-	map<string, map<string, string> >::iterator it = _locations.begin();
-	size_t pos;
-
-	for (size_t i = 0; i < _locations.size(); i++)
-	{
-		pos = loc.rfind(it->first, 0);
-		if (pos != loc.npos)
-		{
-			// SKIP BECAUSE IT MATCH IF IN CONF WE HAVE / && /foo AND GO TO / EVEN IF THE URL CONTAINS /foo
-			if (_locations.size() > 1 && it->first == "/")
-			{
-				it++;
-				continue;
-			}
-			vector<string> allowed = _locations_methods.find(it->first)->second;
-			for (size_t i = 0; i < allowed.size(); i++)
-				if (methods == allowed[i])
-					return true;
-			return false;
-		}
-		it++;
-	}
-	for (size_t i = 0; i < _allowed.size(); i++)
-		if (methods == _allowed[i])
+	for (vector<string>::iterator it = root->options.methods.begin(); it != root->options.methods.end(); it++)
+		if (*it == meth)
 			return true;
 	return false;
 }

@@ -5,6 +5,7 @@
 #include "Server.hpp"
 #include "Worker.hpp"
 #include "Client.hpp"
+#include "Parser.hpp"
 using namespace std;
 
 
@@ -13,21 +14,11 @@ class Worker;
 class Core
 {
 	private:
-		int		_count_workers;
+		Parser _parse;
 		vector<Server *> _servers;
-		vector<_t_preServ> _pre_Serv;
 		map<int, Worker *> _workers;
 		
 		Core();
-		void setWorkers(string);
-		
-		void parseServer(int, string, string, int *);
-		pair<string, vector<string> > parseMethod(map<string, string>, string, string, int);
-		vector<string> newparseMethod(map<string, string>, string, string, int);
-		vector<string> parseMethod(string, string, int);
-
-		void addToLoc(map<string, string> ,vector<string>,string, t_loc *, string, int);
-
 		int _i;
 	public:
 		Core(string);

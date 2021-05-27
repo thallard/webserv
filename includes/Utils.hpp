@@ -23,6 +23,7 @@
 #include <vector>
 #include <list>
 #include <pthread.h>
+#include <errno.h>
 using namespace std;
 
 
@@ -34,6 +35,7 @@ using namespace std;
 
 #define STATUS_HEAD 9999
 
+#define STATUS_BAD_REQUEST 400
 #define STATUS_METHOD_NOT_ALLOWED 405
 #define STATUS_NOT_FOUND 404
 #define STATUS_TEAPOT 418
@@ -64,14 +66,15 @@ typedef struct _s_preServ
 	int id;
 	int port;
 	string name;
-	string root;
 	map<int, string> err;
-	map<string, map<string, string> > loc;
-	string index;
-	map<string, vector<string> > methods;
-	vector<string> allowed;
 	t_loc *_root;
 } 			_t_preServ;
+
+typedef struct s_find
+{
+	t_loc *loc;
+	string path;
+}			t_find;
 
 
 int dispatcher_type_requests(map<string, string> request);
