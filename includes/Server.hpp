@@ -60,13 +60,13 @@ public:
 
 	void setId(int n) { _id = n; }
 	void setDescReady(int nb) { _desc_ready = nb; }
-	void setTempFD(fd_set temp) { _temp_fd = temp; }
+	void setTempFD(fd_set &temp) { memcpy(&_temp_fd, &temp, sizeof(temp)); }
 	void setMaxSD(int val) { _max_sd = val; }
 	void setErrorPages(map<int, string> pages) { _error_pages = pages; }
 
-	fd_set getClientsFD() { return _clients_fd; }
+	fd_set &getClientsFD() { return _clients_fd; }
 	fd_set *getClientsFD_ptr() { return &_clients_fd; }
-	fd_set getTempFD() { return _temp_fd; }
+	fd_set &getTempFD() { return _temp_fd; }
 	fd_set *getTempFD_ptr() { return &_temp_fd; }
 
 	pthread_t *getThread() { return thread; }
@@ -84,6 +84,7 @@ public:
 	string HEAD(map<string, string>, int);
 	string PUT(map<string, string>, int);
 	string SEND_ERROR(int, const char *);
+	string readPerChunks(map<string, string>, int);
 
 	t_file getFile(string);
 

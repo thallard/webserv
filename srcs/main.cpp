@@ -15,147 +15,109 @@ void error(const char *msg)
 void *main_loop(void *arg)
 {
 	Worker *w = reinterpret_cast<Worker *>(arg);
-	// dprintf(1, "coucou fdp %d!\n", w->getId());
-	// w->setStatus(false);
 
+	// Infinite loop, listening on server's run() function
 	while (1)
 	{
-		// pthread_mutex_lock(server->getLogger());
- 			
-				// pthread_mutex_unlock(server->getLogger());
-		if (w->getServer() != NULL && w->getStatus() == false)
+		if (w->getSocket() != 0 && w->getIt() == 0 && w->getStatus() == false && w->getServer() != NULL)
 		{
+			w->setIt(1);
 			w->setStatus(false);
-			cout << "\e[1;96m[Worker " << to_string(w->getId()) << "]\e[0m";
+
+			bool connection_closed = false, server_end = false;
 			Server *server = w->getServer();
-			bool connection_closed = false, server_end = __FLT16_HAS_QUIET_NAN__;
-			socklen_t clilen = sizeof(w->getServer()->getCliAddr());
+			server->log("\e[1;96m[Worker " + to_string(w->getId()) + " is working on this server!]\e[0;0m");
 
-				pthread_mutex_lock(server->getLogger());
- 				cout << "\e[1;96m[Worker " << to_string(w->getId()) << "]\e[0m";
-				pthread_mutex_unlock(server->getLogger());
-
-			for (int fd = 0; fd <= server->getMaxSD() && server->getDescReady() > 0; ++fd)
+			// Check for an available file descriptor
+			for (int fd = 1; fd <= server->getMaxSD() && server->getDescReady() > 0; fd++)
 			{
-				if (FD_ISSET(fd, server->getTempFD_ptr()))
+				if (FD_ISSET(fd, &server->getTempFD()))
 				{
 					server->setDescReady(server->getDescReady() - 1);
 					if (fd == server->getSocket())
 					{
-						cout << "Listening socket is readable!\n";
-						int new_socket;
-						do {
-							new_socket = accept(server->getSocket(), (struct sockaddr *)server->getCliAddr_ptr(), &clilen);
+						int new_socket = 0;
+						do
+						{
+							new_socket = accept(server->getSocket(), NULL, NULL);
 							if (new_socket < 0)
 							{
 								if (errno != EWOULDBLOCK)
 								{
-									perror("Accept failed");
+									perror("Accept() failed : ");
 									server_end = true;
 								}
-								break ;
+								break;
 							}
-							cout << "OH SA MERE LA CONNECITON SUR LE SOCKET : " << new_socket << endl;
-							FD_SET(new_socket, server->getClientsFD_ptr());
-								if (new_socket > server->getMaxSD())
-									server->setMaxSD(new_socket);
-							
+							// Print log accept() new connection
+							server->log("\e[1;94m[New incoming connection socket(" + to_string(fd) + ")]\e[0;0m");
+							FD_SET(new_socket, &server->getClientsFD());
+							if (new_socket > server->getMaxSD())
+								server->setMaxSD(new_socket);
 						} while (new_socket != -1);
 					}
 					else
 					{
-						cout << "Le fd " << fd << " a envie de se faire sauter la gueule\n";
-						connection_closed = false;
+						fcntl(fd, F_SETFL, O_NONBLOCK);
+						Client client(server->getClients().size() + 1, fd);
 						int nbytes_read;
+						string buff;
 						char buffer[4096];
 						bzero(buffer, 4096);
 						do
 						{
-							nbytes_read = recv(fd, buffer, 10, 0);
+							int len_before_recv = sizeof(buffer);
+							usleep(50);
+							nbytes_read = recv(fd, buffer, 1, MSG_DONTWAIT);
+							buff += buffer;
+							bzero(buffer, 4096);
+							size_t found;
+							// Print log recv()
+							if (nbytes_read < 1)
+								server->log("\e[1;93m[recv() read " + to_string(nbytes_read) + " characters]\e[0;0m");
+							if (buff.size() > 5)
+								if ((found = buff.find("\r\n\r\n", buff.size() - 4)) != string::npos)
+								{
+									dprintf(1, "c la fin gros!!!!!!!!! %s\n", buff.c_str());
+									connection_closed = true;
+									client.setContent(buff);
+									server->handle_request(client);
+									break;
+								}
+							if (nbytes_read < 1 && nbytes_read < len_before_recv)
+							{
+								dprintf(1, "je rentre rune fois icic\n");
+								connection_closed = true;
+								client.setContent(buff);
+								server->handle_request(client);
+								break;
+							}
 							if (nbytes_read < 0)
 							{
 								if (errno != EWOULDBLOCK)
 								{
-									perror("recv() failed\n");
-									connection_closed = true;
+									perror("recv() failed");
+									server_end = true;
 								}
-								break ;
-							}
-
-							if (nbytes_read == 0)
-							{
-								cout << "Connection closed\n";
-								connection_closed = true;
-									w->setStatus(true);
-								break ;
-							}
-							int len = nbytes_read;
-							cout << len << " bytes received\n";
-							nbytes_read = send(fd, "bonjour", 7, 0);
-							if (nbytes_read < 0)
-							{
-								perror("error dans le sud\n");
-								connection_closed = true;
-									w->setStatus(true);
-								break ;
+								break;
 							}
 						} while (true);
-						// close(fd);
 						if (connection_closed)
 						{
+							server->log("\e[1;31m[Connection closed]\e[0m");
 							close(fd);
-							FD_CLR(fd, server->getClientsFD_ptr());
+							FD_CLR(fd, &server->getClientsFD());
 							if (fd == server->getMaxSD())
 							{
-								while (FD_ISSET(server->getMaxSD(), server->getClientsFD_ptr()) == false)
+								while (!FD_ISSET(server->getMaxSD(), &server->getClientsFD()))
 									server->setMaxSD(server->getMaxSD() - 1);
 							}
 						}
 					}
 				}
-				else 
-					cout << "oh mama jai pas trouve le fd la...\n";
-				
 			}
-				w->setStatus(true);
-			// if (FD_ISSET(w->getSocket(), server->getClientsFD_ptr()))
-			// 	cout << "jexiste deja!\n";
-			// else
-			// 	FD_SET(w->getSocket(), server->getClientsFD_ptr());
-			// w->setStatus(false);
-			// int newsockfd = accept(server->getSocket(), (struct sockaddr *)server->getCliAddr_ptr(), &clilen);
-			//
-			// server->log("oui et socket de la requete :" + to_string(newsockfd));
-			
-			// char bouffe[2048];
-			// read(w->getServer()->getSocket(), bouffe, 2048);
-			// cout << bouffe << endl;
-			// close(newsockfd);
+			w->setStatus(true);
 			w->setServer(NULL);
-		
-			// cout << "gros chien de la casse\n";
-			// Client client;
-			// // Find the current client on these available
-			// list<Client>::iterator begin = w->getServer()->getClients().begin();
-			// while (begin != w->getServer()->getClients().end())
-			// {
-			// 	if (w->getSocket() == begin->getSocket())
-			// 		client = *begin;
-			// 	begin++;
-			// 	cout << "gros con de mutex" << endl;
-			// }
-			// cout << "gros con de mutex " << endl;
-			// pthread_mutex_lock(w->getServer()->getLogger());
-		
-			// pthread_mutex_unlock(w->getServer()->getLogger());
-			// w->getServer()->handle_request(client);
-			// w->setStatus(true);
-			// //close(w->getSocket());
-			// w->setSocket(0);
-
-			// cout << "allo19\n";
-			// break;
-			
 		}
 	}
 

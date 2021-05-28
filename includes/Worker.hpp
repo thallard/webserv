@@ -17,6 +17,7 @@ private:
 	bool is_available;
 	int socket;
 	int id;
+	int it;
 
 public:
 	Worker();
@@ -27,11 +28,13 @@ public:
 	bool getStatus();
 	int getId();
 	int getSocket();
+	int getIt() { return it; }
 	Server *getServer();
 	pthread_t *getThread();
 	void setStatus(bool);
 	void setSocket(int);
 	void setServer(Server *);
+	void setIt(int oui) { it = oui;}
 
 	// Methods
 	void handle_request(int socket);
