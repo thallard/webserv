@@ -462,7 +462,7 @@ void Server::handle_request(Client &client)
 			  << endl;
 	std::cout << client.getSocket() << " et la taille : " << response << endl;
 	std::cout << "\e[31m JE WRITE \n\e[0m";
-	n = send(client.getSocket(), response.c_str(), response.size(), MSG_DONTWAIT);
+	n = send(client.getSocket(), response.c_str(), response.size(), 0);
 	//n = write(sock, response.c_str(), strlen(response.c_str()));
 	// std::cout << "allo4\n";
 	if (n < 0)
@@ -538,43 +538,23 @@ string Server::PUT(map<string, string> header, int socket)
 	std::cout << "on entre bien adns le put\n";
 	Headers tmp;
 	string resp, content;
-	// char buff[4096];
-	// bzero(buff, 4096);
-	// recv(socket, buff, atoi(header.find("Content-Length")->second.c_str()), 0);
-	
-	// A patch des que getfile marche
-	string path = header.find("Location")->second;
-	//struct stat sb;
-	cout << " le transfer enconding = " << header.find("Transfer-Encoding")->second << endl;
-	
-	if (!strncmp(header.find("Transfer-Encoding")->second.c_str(), "chunked", 8))
-		 content =  readPerChunks(header, socket);
 
-	// else if (header.find("Content-Length")->second == "0")
-	// {
-	// 	return (tmp.return_response_header(STATUS_NO_CONTENT, tmp, 0));
-	// }
-	cout << "Le content : " << content << endl;
-	// header.insert(make_pair("Content", content));
-	// header.insert(make_pair("Content-Length", to_string(content.size())));
-	// std::cout << content_char << endl;
-const char *content_char = content.c_str();
+	string path = header.find("Location")->second;
+
+	if (!strncmp(header.find("Transfer-Encoding")->second.c_str(), "chunked", 8))
+		content = readPerChunks(header, socket);
+	else
+		content = header.find("Content")->second;
+
+	const char *content_char = content.c_str();
 	const char *to_print = content_char;
-	
+
 	t_file file = getFile(header.find("Location")->second);
 	if (header.count("Content") && !header.find("Content")->second.size())
 		resp = SEND_ERROR(STATUS_NO_CONTENT, "No Content");
-	cout << "le path est : " << path << endl;
-	// A UPDATE tres rapidement des que le GetFile est patch
-	std::cout << "ici1\n";
-	// std::cout << " je print :" << to_print << ":\n";
-	int nb_prints, fd = open("./default/file.txt", O_CREAT| O_WRONLY | O_NONBLOCK, 0777);
-	std::cout << "je crash ici\n";
-	// istringstream iss(header.find("Content-Length")->second);
-	std::cout << "je crash ici\n";
-	size_t remaining_characters, count = 0;
-	remaining_characters = content.size();
-	cout << remaining_characters << endl;
+
+	int nb_prints, fd = open("./default/file.txt", O_CREAT | O_WRONLY | O_NONBLOCK, 0777);
+	size_t remaining_characters = content.size(), count = 0;
 	while (count < remaining_characters)
 	{
 		if (65535 < count)
@@ -584,16 +564,14 @@ const char *content_char = content.c_str();
 			to_print = content_char + count;
 			nb_prints = strlen(content_char);
 		}
-		std::cout << "nb_prints = " << nb_prints << " toPrint = " << to_print << endl;
 		count += write(fd, to_print, nb_prints);
-		std::cout <<  count << endl;
 	}
-	std::cout << "ici2\n";
+
 	close(fd);
 
 	resp = tmp.return_response_header(200, tmp, content.size());
-	// resp += content;
-	return resp;
+	resp += content;
+	return (resp);
 }
 
 // A ameliorer plus tard
@@ -738,8 +716,7 @@ string Server::readPerChunks(map<string, string> header, int socket)
 	string content;
 	cout << "on rentre bien dans le read per chumnks\n";
 
-	
-		long length = 1;
+	long length = 1;
 	while (length)
 	{
 		length = 0;
@@ -757,23 +734,22 @@ string Server::readPerChunks(map<string, string> header, int socket)
 			}
 			i++;
 		}
-		if (retval == -1)
-			break ;
+		// if (retval == -1)
+		// 	break;
 		// Transform hexadecimal length to decimal
 		stringstream stream;
 
 		stream << hex << buf;
 		stream >> length;
-		cout << length << endl;
-		cout << content << endl;
+		// cout << length << endl;
+		// cout << content << endl;
 		// Start to read the content and append it in a string
 		char buffer[65535];
 		long nbytes_read = 0, remaining_characters = length, start = 0;
 
-	
 		while (remaining_characters > 0)
 		{
-				// bzero(buffer, 65535);
+			bzero(buffer, 65535);
 			if (length > 65535)
 			{
 				remaining_characters = length - 65535;
@@ -781,8 +757,8 @@ string Server::readPerChunks(map<string, string> header, int socket)
 			}
 			else
 				remaining_characters -= length;
-			nbytes_read = recv(socket, &buffer[start], length, 0);
-		
+			nbytes_read = recv(socket, &buffer[start], 51232, 0);
+
 			start += nbytes_read;
 			buffer[length] = '\0';
 			content += buffer;
