@@ -60,31 +60,21 @@ void *main_loop(void *arg)
 					{
 						fcntl(fd, F_SETFL, O_NONBLOCK);
 						Client client(server->getClients().size() + 1, fd);
-						int nbytes_read;
+						int nbytes_read = 0;
 						string buff;
-						char buffer[4096];
+						char buffer[100000];
 						bzero(buffer, 4096);
 						do
 						{
 							int len_before_recv = sizeof(buffer);
 							usleep(50);
-							nbytes_read = recv(fd, buffer, 1, MSG_DONTWAIT);
+							nbytes_read += recv(fd, &buffer[nbytes_read], 4096, MSG_DONTWAIT);
 							buff += buffer;
 							bzero(buffer, 4096);
-							size_t found;
 							// Print log recv()
 							if (nbytes_read < 1)
 								server->log("\e[1;93m[recv() read " + to_string(nbytes_read) + " characters]\e[0;0m");
-							if (buff.size() > 5)
-								if ((found = buff.find("\r\n\r\n", buff.size() - 4)) != string::npos)
-								{
-									dprintf(1, "c la fin gros!!!!!!!!! %s\n", buff.c_str());
-									connection_closed = true;
-									client.setContent(buff);
-									server->handle_request(client);
-									// sleep(1);
-									break;
-								}
+							
 							if (nbytes_read < 1 && nbytes_read < len_before_recv)
 							{
 								dprintf(1, "je rentre rune fois icic\n");

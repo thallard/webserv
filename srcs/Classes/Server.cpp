@@ -460,7 +460,7 @@ void Server::handle_request(Client &client)
 			  << "La response ici : \n"
 			  << response << endl
 			  << endl;
-	std::cout << client.getSocket() << " et la taille : " << response << endl;
+	// std::cout << client.getSocket() << " et la taille : " << response << endl;
 	std::cout << "\e[31m JE WRITE \n\e[0m";
 	n = send(client.getSocket(), response.c_str(), response.size(), 0);
 	//n = write(sock, response.c_str(), strlen(response.c_str()));
@@ -535,7 +535,7 @@ string Server::POST(map<string, string> header, int socket)
 // PUT method (create new file or trunk existent content)
 string Server::PUT(map<string, string> header, int socket)
 {
-	std::cout << "on entre bien adns le put\n";
+	log("\e[1;93m[PUT -> " + header.find("Location")->second + "]\e[0m");
 	Headers tmp;
 	string resp, content;
 
@@ -553,7 +553,7 @@ string Server::PUT(map<string, string> header, int socket)
 	if (header.count("Content") && !header.find("Content")->second.size())
 		resp = SEND_ERROR(STATUS_NO_CONTENT, "No Content");
 
-	int nb_prints, fd = open("./default/file.txt", O_CREAT | O_WRONLY | O_NONBLOCK, 0777);
+	int nb_prints, fd = open("./default/file.txt", O_TRUNC | O_CREAT | O_WRONLY | O_NONBLOCK, 0777);
 	size_t remaining_characters = content.size(), count = 0;
 	while (count < remaining_characters)
 	{
@@ -714,58 +714,90 @@ string Server::readPerChunks(map<string, string> header, int socket)
 {
 	(void)header;
 	string content;
-	cout << "on rentre bien dans le read per chumnks\n";
+	(void)socket;
+		cout << "on rentre bien dans le read per chumnks\n";
+// 	long length = 1, retval = 0, i = 0;
+// 	char buf[12];
+// 	// bzero(buf, 256);
 
-	long length = 1;
-	while (length)
-	{
-		length = 0;
-		int retval = 0, i = 0;
-		char buf[256];
-		bzero(buf, 256);
-		// Find how many characters we need to read on one chunk
-		while ((retval = recv(socket, &buf[i], 1, 0)) > 0)
-		{
-			cout << "le buffer : " << buf << "\n";
-			if (strlen(buf) >= 2 && !strncmp(buf + strlen(buf) - 2, "\r\n", 2))
-			{
-				cout << "fin de la taille " << buf << "\n";
-				break;
-			}
-			i++;
-		}
-		// if (retval == -1)
-		// 	break;
-		// Transform hexadecimal length to decimal
-		stringstream stream;
+// 	// Define the first number of character needed to be read
+// 	// while ((retval = recv(socket, &buf[i], 1, 0)) > 0)
+// 	// {
+// 	// 	cout << "le buffer : " << buf << "\n";
+// 	// 	if (strlen(buf) >= 2 && !strncmp(buf + strlen(buf) - 2, "\r\n", 2))
+// 	// 	{
+// 	// 		buf[i] = '\0';
+// 	// 		cout << "fin de la taille " << buf << "\n";
+// 	// 		recv(socket, NULL, 1, 0);
+// 	// 		break;
+// 	// 	}
+// 	// 	i++;
+// 	// }
+// 		long start;
+// 	while (length)
+// 	{
+	
+// 		// Find how many characters we need to read on one chunk
+// bzero(buf, 12);
+// 		i = 0;
+// 		if (start - 1 == length)
+// 			length = 0;
+// 		while ((retval = recv(socket, &buf[i], 1, 0)) > -3)
+// 		{
+// 			// if (retval == -1)
+// 			// 	usleep(400);
+// 				cout << "le charactere : |" << buf[i] << "|" << endl;
+// 			if (buf[i] == '\n' || buf[i] == '\r')
+// 			{
+// 				buf[i] = '\0';
+// 				cout << "fin de la taille 2 : |" << buf << "|" << endl;
+// 				break;
+// 			}
+			
+// 			i++;
+// 		}
+// 		// if (retval == -1)
+// 		// 	break;
+// 		// Transform hexadecimal length to decimal
+// 		stringstream stream;
 
-		stream << hex << buf;
-		stream >> length;
-		// cout << length << endl;
-		// cout << content << endl;
-		// Start to read the content and append it in a string
-		char buffer[65535];
-		long nbytes_read = 0, remaining_characters = length, start = 0;
+// 		stream << hex << buf;
+// 		stream >> length;
+// 		if (!length)
+// 			break;
+// 		cout << length << endl;
+// 		// cout << content << endl;
+// 		// Start to read the content and append it in a string
+// 		char buffer[65535];
+// 		long nbytes_read = 0, remaining_characters = length;
+// 		start = 0;
+// 		while (remaining_characters > 0)
+// 		{
+// 			bzero(buffer, 65535);
+// 			if (length > 65535)
+// 			{
+// 				remaining_characters -= 65535;
+// 				length = 65535;
+// 			}
+// 			// else
+// 			// 	remaining_characters -= length;
+// 			nbytes_read = recv(socket, &buffer[start], length + 3, 0);
+// 			remaining_characters -= nbytes_read;
+// 			start += nbytes_read - 2;
+// 			buffer[length - 2] = '\0';
+// 			content += buffer;
+// 			// cout << content[length] << endl;
+// 			log("\e[1;93m[recv() read " + to_string(nbytes_read - 2) + " characters " + to_string(length) + "]\e[0;0m");
+// 		}
+		
+// 		cout << "je quitte le recv avec un start de : " << start - 1<< endl;
+// 		// cout << content.size() << "Content : " << content << " " << endl;
+// 		// length = 0;
+		
+// 		// cout << "|" << content <<"|"<< endl;
+// 		// length = 0;
+	
 
-		while (remaining_characters > 0)
-		{
-			bzero(buffer, 65535);
-			if (length > 65535)
-			{
-				remaining_characters = length - 65535;
-				length = 65535;
-			}
-			else
-				remaining_characters -= length;
-			nbytes_read = recv(socket, &buffer[start], 51232, 0);
-
-			start += nbytes_read;
-			buffer[length] = '\0';
-			content += buffer;
-			// log("\e[1;93m[recv() read " + to_string(nbytes_read) + " characters]\e[0;0m");
-		}
-	}
-
-	cout << content.size() << "Content : " << content << " " << endl;
+	// cout << content.size() << "Content : " << content << " " << endl;
 	return (content);
 }
