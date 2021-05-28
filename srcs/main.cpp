@@ -82,6 +82,7 @@ void *main_loop(void *arg)
 									connection_closed = true;
 									client.setContent(buff);
 									server->handle_request(client);
+									// sleep(1);
 									break;
 								}
 							if (nbytes_read < 1 && nbytes_read < len_before_recv)
