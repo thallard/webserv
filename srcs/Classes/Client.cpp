@@ -3,6 +3,7 @@
 
 Client::Client()
 {
+	
 }
 
 Client::Client(int id, int socket)

@@ -415,23 +415,37 @@ void Server::handle_request(Client &client)
 	string (Server::*command[])(map<string, string>, int) = {&Server::GET, &Server::POST, &Server::HEAD, &Server::PUT};
 	string buffer = client.getContent();
 	int n;
-	// Read until header until is finished
 
-	std::cout << "allo1\n";
 	Headers request;
 	request += buffer;
-	string response;
 	map<string, string> p_request = request.last();
+	string response, req_type = p_request.find("Request-Type")->second;
 
+	// DEBUG
+	cout << client.getContent() << endl;
 	std::cout << "Request :" << endl
 			  << buffer << endl
 			  << "=====" << endl;
-	string req_type = p_request.find("Request-Type")->second;
-	std::cout << "allo2 |" << req_type << "|" << type[3] << "| " << p_request.find("Location")->second << "\n";
+	// Create the output file if the request type is PUT or POST
+	// if (!strncmp(req_type.c_str(), "PUT", 3) || !strncmp(req_type.c_str(), "POST", 4))
+	// {
+	// 	ofstream ofile;
+	// 	if (!strncmp(req_type.c_str(), "PUT", 3))
+	// 		ofile.open("./default/file.txt", ofstream::out | ofstream::trunc);
+	// 	else
+	// 		ofile.open("./default/file.txt", ofstream::out);
+	// }
+
+
+	// std::cout << "allo2 |" << req_type << "|" << type[3] << "| " << p_request.find("Location")->second << "\n";
 	for (size_t i = 0; i <= type->size(); i++)
 	{
+		// A PATCH LA BOUCLE NE TROUVE PAS LE DERNIER ELEMENT DE LA STRING
 		if (!strcmp("PUT", type[i].c_str()))
+		{
+			
 			response = (this->*command[i])(p_request, client.getSocket());
+		}
 		else if (!strncmp(req_type.c_str(), type[i].c_str(), req_type.size()))
 		{
 
@@ -450,16 +464,18 @@ void Server::handle_request(Client &client)
 		}
 		else if (i == type->size())
 		{
-			// std::cout << "dis moi ici le pb :" << type[i] << "\n";
 			response = SEND_ERROR(STATUS_BAD_REQUEST, "Bad Request");
 			break;
 		}
 	}
-	// std::cout << "allo3\n";
+
+	// DEBUG
 	std::cout << endl
 			  << "La response ici : \n"
 			  << response << endl
 			  << endl;
+
+
 	// std::cout << client.getSocket() << " et la taille : " << response << endl;
 	std::cout << "\e[31m JE WRITE \n\e[0m";
 	n = send(client.getSocket(), response.c_str(), response.size(), 0);
@@ -535,12 +551,14 @@ string Server::POST(map<string, string> header, int socket)
 // PUT method (create new file or trunk existent content)
 string Server::PUT(map<string, string> header, int socket)
 {
+
+	// Refactoring en cours
 	log("\e[1;93m[PUT -> " + header.find("Location")->second + "]\e[0m");
 	Headers tmp;
-	string resp, content;
+	ofstream ofile;
+	string resp, content, path = header.find("Location")->second;
 
-	string path = header.find("Location")->second;
-
+	ofile.open("default/file_put.txt", ofstream::out | ofstream::trunc);
 	if (!strncmp(header.find("Transfer-Encoding")->second.c_str(), "chunked", 8))
 		content = readPerChunks(header, socket);
 	else
@@ -716,6 +734,7 @@ string Server::readPerChunks(map<string, string> header, int socket)
 	string content;
 	(void)socket;
 		cout << "on rentre bien dans le read per chumnks\n";
+	// cout << header.find("Content")->second << endl;
 // 	long length = 1, retval = 0, i = 0;
 // 	char buf[12];
 // 	// bzero(buf, 256);

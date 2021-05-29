@@ -68,7 +68,7 @@ void *main_loop(void *arg)
 						{
 							int len_before_recv = sizeof(buffer);
 							usleep(50);
-							nbytes_read += recv(fd, &buffer[nbytes_read], 4096, MSG_DONTWAIT);
+							nbytes_read += recv(fd, &buffer[nbytes_read], 4096, 0);
 							buff += buffer;
 							bzero(buffer, 4096);
 							// Print log recv()

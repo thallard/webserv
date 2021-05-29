@@ -5,9 +5,10 @@
 class Client
 {
 private:
-	int _socket;
-	int _id;
-	string _content;
+	int			_socket;
+	int			_id;
+	string		_content;
+
 public:
 	Client();
 	Client(int, int);
@@ -19,6 +20,7 @@ public:
 	int getSocket() { return _socket; }
 	int getId() { return _id; }
 	string getContent() { return _content; }
+	
 	void setSocket(int socket) { _socket = socket; }
 	void setId(int id) { _id = id; }
 	void setContent(string content) { _content = content; }
