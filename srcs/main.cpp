@@ -62,15 +62,25 @@ void *main_loop(void *arg)
 						Client client(server->getClients().size() + 1, fd);
 						int nbytes_read = 0;
 						string buff;
-						char buffer[100000];
-						bzero(buffer, 4096);
+						char buffer[65535];
+						
 						do
 						{
+							bzero(buffer, 65535);
 							int len_before_recv = sizeof(buffer);
 							usleep(50);
-							nbytes_read += recv(fd, &buffer[nbytes_read], 4096, 0);
+							nbytes_read += recv(fd, &buffer[nbytes_read], 65534, 0);
+							dprintf(1, "debug de la nbytes read = %d\n", nbytes_read);
 							buff += buffer;
-							bzero(buffer, 4096);
+							if (nbytes_read >= 4000)
+							{
+								dprintf(1, "je rentre rune fois icic\n");
+								connection_closed = true;
+								client.setContent(buff);
+								server->handle_request(client);
+								break;
+							}
+							
 							// Print log recv()
 							if (nbytes_read < 1)
 								server->log("\e[1;93m[recv() read " + to_string(nbytes_read) + " characters]\e[0;0m");

@@ -79,12 +79,12 @@ public:
 	t_find findAllLoc(string);
 	void handle_request(Client &);
 
-	string GET(map<string, string>, int);
-	string POST(map<string, string>, int);
-	string HEAD(map<string, string>, int);
-	string PUT(map<string, string>, int);
+	string GET(map<string, string>, Client &);
+	string POST(map<string, string>, Client &);
+	string HEAD(map<string, string>, Client &);
+	string PUT(map<string, string>, Client &);
 	string SEND_ERROR(int, const char *);
-	string readPerChunks(map<string, string>, int);
+	string readPerChunks(Client &, string);
 
 	t_file getFile(string);
 

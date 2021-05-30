@@ -8,6 +8,7 @@ private:
 	int			_socket;
 	int			_id;
 	string		_content;
+	string		_path;
 
 public:
 	Client();
@@ -20,10 +21,12 @@ public:
 	int getSocket() { return _socket; }
 	int getId() { return _id; }
 	string getContent() { return _content; }
+	string getPath() { return _path; }
 	
 	void setSocket(int socket) { _socket = socket; }
 	void setId(int id) { _id = id; }
 	void setContent(string content) { _content = content; }
+	void setPath(string path) { _path = path; }
 
 	bool exists(int socket);
 	bool readContent();
