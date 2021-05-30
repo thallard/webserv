@@ -730,187 +730,80 @@ int Server::findAvailableWorker(map<int, Worker *> &workers)
 
 string Server::readPerChunks(Client &client, string method)
 {
-	static int total = 1;
-	(void)method;
-	string content, temp;
-	cout << "on rentre bien dans le read per chumnks\n";
-
-	// cout << client.getContent() << endl;
-	size_t pos = client.getContent().find("\r\n\r\n", 0);
-	temp = &client.getContent().at(pos + 4);
-	// cout << "[" << temp << "]" << endl;
+	string content, temp, length_char;
+	stringstream stream;
 	ofstream ofile;
 
-	ofile.open("./default/file_put.text", ios::out);
+	temp = &client.getContent().at(client.getContent().find("\r\n\r\n", 0) + 4);
+
+	if (!strncmp(method.c_str(), "PUT", 3))
+		ofile.open("./default/file_put.text", ios::out);
+	else
+		ofile.open("./default/file_post.txt", ios::out | ios::app);
+
 	// Get the length of the chunk
-	string length_char;
 	int i = 0, length = 0;
 	while (temp.at(i) != '\r' && temp.at(i) != '\n')
 		length_char += temp.at(i++);
 
-	// Remove hexadecimal characters and \r\n + transform hexadecimal length to decimal
+	// Remove hexadecimal characters and \r\n from temp + transform hexadecimal length to decimal
 	temp = &temp.at(i + 2);
-	stringstream stream;
 	stream << hex << length_char;
 	stream >> length;
 
-	cout << "Taille de la chunk : " << length << endl;
 	// Append existent content from worker's recv
 	for (int j = 0; j < length; j++)
 		content += temp.at(j);
 	temp = &temp.at(length + 2);
-	cout << "Dernier charactere du temp : " << temp.size() << endl;
 	ofile << content;
-char buff[length + 1];
+	char buff[length + 1];
 
-
-	// int remaining_characters;
 	while (true)
 	{
 		char buf[65535];
 		bzero(buf, 65535);
 		length_char.clear();
-		i = 0;
+		int length_copy = 0, i = 0, nbytes_read = 0;
+
 		while (temp.at(i) != '\r' && temp.at(i) != '\n')
 			length_char += temp.at(i++);
 		temp = &temp.at(i + 2);
 
-		stringstream stream;
+	stringstream stream;
 		stream << hex << length_char;
 		stream >> length;
 		if (!length)
-			break ;
-		cout << length_char << endl;
-		cout << "Taille de la chunk : " << length << " et la taille de temp : " << temp.size() << endl;
-		int length_copy = 0;
+			break;
 		if (length > static_cast<int>(temp.size()))
 		{
 			ofile << temp;
-			// content.copy((char *)temp.c_str(), )
-			total += temp.size();
 			length_copy = temp.size();
 		}
 		else
 		{
 			bzero(buff, length + 1);
-			// content_print.clear();
-			// temp[temp.size()] = '\0';
 			temp.copy(buff, length, 0);
-			cout << "dans le else : " << strlen(buff) << endl;
 			temp = &temp.at(length + 2);
-			total += strlen(buff);
 			ofile << buff;
-			continue ;
-			// ofile.close();
-			// break ;
+			continue;
 		}
-
-		int nbytes_read = 0;
-		usleep(1000);
+		usleep(50);
 		do
 		{
 			nbytes_read += recv(client.getSocket(), &buf[strlen(buf)], 65000 - strlen(buf), 0);
-		// log("\e[1;93m[recv() read " + to_string(nbytes_read) + " characters]\e[0;0m");
-			// cout << nbytes_read << endl;
 			if (strstr(buf, "0\r\n\r\n"))
-				break ;
+				break;
 		} while (65000 - strlen(buf) > 1);
-		
-		
+
 		temp.clear();
 		temp = buf;
 		bzero(buff, length + 1);
 		temp.copy(buff, length - length_copy, 0);
-		total += strlen(buff);
 		ofile << buff;
 		temp = &temp.at(length - length_copy + 2);
 		content.clear();
 	}
-	cout << "Characteres print de mon cote : " << total <<  " vrai nombre que je devrais print : " << 10000000 << endl;
 	content.clear();
 	ofile.close();
-	// cout << header.find("Content")->second << endl;
-	// 	long length = 1, retval = 0, i = 0;
-	// 	char buf[12];
-	// 	// bzero(buf, 256);
-
-	// 	// Define the first number of character needed to be read
-	// 	// while ((retval = recv(socket, &buf[i], 1, 0)) > 0)
-	// 	// {
-	// 	// 	cout << "le buffer : " << buf << "\n";
-	// 	// 	if (strlen(buf) >= 2 && !strncmp(buf + strlen(buf) - 2, "\r\n", 2))
-	// 	// 	{
-	// 	// 		buf[i] = '\0';
-	// 	// 		cout << "fin de la taille " << buf << "\n";
-	// 	// 		recv(socket, NULL, 1, 0);
-	// 	// 		break;
-	// 	// 	}
-	// 	// 	i++;
-	// 	// }
-	// 		long start;
-	// 	while (length)
-	// 	{
-
-	// 		// Find how many characters we need to read on one chunk
-	// bzero(buf, 12);
-	// 		i = 0;
-	// 		if (start - 1 == length)
-	// 			length = 0;
-	// 		while ((retval = recv(socket, &buf[i], 1, 0)) > -3)
-	// 		{
-	// 			// if (retval == -1)
-	// 			// 	usleep(400);
-	// 				cout << "le charactere : |" << buf[i] << "|" << endl;
-	// 			if (buf[i] == '\n' || buf[i] == '\r')
-	// 			{
-	// 				buf[i] = '\0';
-	// 				cout << "fin de la taille 2 : |" << buf << "|" << endl;
-	// 				break;
-	// 			}
-
-	// 			i++;
-	// 		}
-	// 		// if (retval == -1)
-	// 		// 	break;
-	// 		// Transform hexadecimal length to decimal
-	// 		stringstream stream;
-
-	// 		stream << hex << buf;
-	// 		stream >> length;
-	// 		if (!length)
-	// 			break;
-	// 		cout << length << endl;
-	// 		// cout << content << endl;
-	// 		// Start to read the content and append it in a string
-	// 		char buffer[65535];
-	// 		long nbytes_read = 0, remaining_characters = length;
-	// 		start = 0;
-	// 		while (remaining_characters > 0)
-	// 		{
-	// 			bzero(buffer, 65535);
-	// 			if (length > 65535)
-	// 			{
-	// 				remaining_characters -= 65535;
-	// 				length = 65535;
-	// 			}
-	// 			// else
-	// 			// 	remaining_characters -= length;
-	// 			nbytes_read = recv(socket, &buffer[start], length + 3, 0);
-	// 			remaining_characters -= nbytes_read;
-	// 			start += nbytes_read - 2;
-	// 			buffer[length - 2] = '\0';
-	// 			content += buffer;
-	// 			// cout << content[length] << endl;
-	// 			log("\e[1;93m[recv() read " + to_string(nbytes_read - 2) + " characters " + to_string(length) + "]\e[0;0m");
-	// 		}
-
-	// 		cout << "je quitte le recv avec un start de : " << start - 1<< endl;
-	// 		// cout << content.size() << "Content : " << content << " " << endl;
-	// 		// length = 0;
-
-	// 		// cout << "|" << content <<"|"<< endl;
-	// 		// length = 0;
-
-	// cout << content.size() << "Content : " << content << " " << endl;
 	return (content);
 }
