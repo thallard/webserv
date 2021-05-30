@@ -730,6 +730,7 @@ int Server::findAvailableWorker(map<int, Worker *> &workers)
 
 string Server::readPerChunks(Client &client, string method)
 {
+	static int total = 1;
 	(void)method;
 	string content, temp;
 	cout << "on rentre bien dans le read per chumnks\n";
@@ -757,55 +758,75 @@ string Server::readPerChunks(Client &client, string method)
 	// Append existent content from worker's recv
 	for (int j = 0; j < length; j++)
 		content += temp.at(j);
-	// cout << "Dernier charactere du temp : " << &temp.at(length + 2) << endl;
+	temp = &temp.at(length + 2);
+	cout << "Dernier charactere du temp : " << temp.size() << endl;
 	ofile << content;
+char buff[length + 1];
+
 
 	// int remaining_characters;
 	while (true)
 	{
-
-		int nbytes_read = 0;
-		char buf[65536];
-		bzero(buf, 65536);
-
-		// Parse the length
-		cout << "charactere a : [" << temp.at(length + 2) << "]" << length << endl;
-
-		// Parse the length
-		i = 0;
-		temp = &temp.at(length + 2);
+		char buf[65535];
+		bzero(buf, 65535);
 		length_char.clear();
-		while (temp.at(i) && temp.at(i) != '\r' && temp.at(i) != '\n')
+		i = 0;
+		while (temp.at(i) != '\r' && temp.at(i) != '\n')
 			length_char += temp.at(i++);
-		if (i != length)
-			cout << "c'est le cas! " << length << " " << i << "\n";
 		temp = &temp.at(i + 2);
+
 		stringstream stream;
 		stream << hex << length_char;
 		stream >> length;
-		cout << "Taille de la chunk 2 : " << length << "[" << length_char << "]" << endl;
 		if (!length)
-			break;
-		int length_copy = length;
-		for (int j = 0; j < length; j++)
+			break ;
+		cout << length_char << endl;
+		cout << "Taille de la chunk : " << length << " et la taille de temp : " << temp.size() << endl;
+		int length_copy = 0;
+		if (length > static_cast<int>(temp.size()))
 		{
-			content += temp.at(j);
-			length_copy--;
+			ofile << temp;
+			// content.copy((char *)temp.c_str(), )
+			total += temp.size();
+			length_copy = temp.size();
+		}
+		else
+		{
+			bzero(buff, length + 1);
+			// content_print.clear();
+			// temp[temp.size()] = '\0';
+			temp.copy(buff, length, 0);
+			cout << "dans le else : " << strlen(buff) << endl;
+			temp = &temp.at(length + 2);
+			total += strlen(buff);
+			ofile << buff;
+			continue ;
+			// ofile.close();
+			// break ;
 		}
 
-
-		// Read 65535 characters from the socket
-		nbytes_read = recv(client.getSocket(), buf, 65535, 0);
-
+		int nbytes_read = 0;
+		usleep(1000);
+		do
+		{
+			nbytes_read += recv(client.getSocket(), &buf[strlen(buf)], 65000 - strlen(buf), 0);
+		// log("\e[1;93m[recv() read " + to_string(nbytes_read) + " characters]\e[0;0m");
+			// cout << nbytes_read << endl;
+			if (strstr(buf, "0\r\n\r\n"))
+				break ;
+		} while (65000 - strlen(buf) > 1);
+		
+		
 		temp.clear();
+		temp = buf;
+		bzero(buff, length + 1);
+		temp.copy(buff, length - length_copy, 0);
+		total += strlen(buff);
+		ofile << buff;
+		temp = &temp.at(length - length_copy + 2);
 		content.clear();
-
-		temp += buf;
-		content.copy((char *)temp.c_str(), length_copy);
-		ofile << content;
-		// length = 0;
-		// break;
 	}
+	cout << "Characteres print de mon cote : " << total <<  " vrai nombre que je devrais print : " << 10000000 << endl;
 	content.clear();
 	ofile.close();
 	// cout << header.find("Content")->second << endl;

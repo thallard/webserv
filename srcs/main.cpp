@@ -69,11 +69,13 @@ void *main_loop(void *arg)
 							bzero(buffer, 65535);
 							int len_before_recv = sizeof(buffer);
 							usleep(50);
-							nbytes_read += recv(fd, &buffer[nbytes_read], 65534, 0);
+							nbytes_read += recv(fd, buffer, 65535 - nbytes_read, 0);
+							// cout << buffer << endl;
 							dprintf(1, "debug de la nbytes read = %d\n", nbytes_read);
 							buff += buffer;
-							if (nbytes_read >= 4000)
+							if (65535 - nbytes_read <= 0)
 							{
+							// cout << buff << endl;
 								dprintf(1, "je rentre rune fois icic\n");
 								connection_closed = true;
 								client.setContent(buff);
