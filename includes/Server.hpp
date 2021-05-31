@@ -84,7 +84,7 @@ public:
 	string HEAD(map<string, string>, Client &);
 	string PUT(map<string, string>, Client &);
 	string SEND_ERROR(int, const char *);
-	string readPerChunks(Client &, string);
+	string readPerChunks(Client &, string, map<string, string>);
 
 	t_file getFile(string);
 

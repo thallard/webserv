@@ -463,15 +463,18 @@ void Server::error(const char *s)
 string Server::POST(map<string, string> header, Client &client)
 {
 	Headers tmp;
-	string resp, content = header.find("Content")->second.c_str();
+	string
+		resp,
+		content = header.find("Content")->second.c_str();
 	int nb_print = 0;
 	char buffer[65535];
 	ofstream ofile;
 
+	log("\e[1;93m[POST -> " + header.find("Location")->second + "]\e[0m");
 	// Check if the content is chunked
 	if (!strncmp(header.find("Transfer-Encoding")->second.c_str(), "chunked", 8))
 	{
-		readPerChunks(client, "POST");
+		readPerChunks(client, "POST", header);
 		resp = tmp.return_response_header(STATUS_OK, tmp, 0);
 		return resp;
 	}
@@ -518,7 +521,7 @@ string Server::PUT(map<string, string> header, Client &client)
 	// ofile.open("default/file_put.txt", ofstream::out | ofstream::trunc);
 	if (!strncmp(header.find("Transfer-Encoding")->second.c_str(), "chunked", 8))
 	{
-		readPerChunks(client, "PUT");
+		readPerChunks(client, "PUT", header);
 		resp = tmp.return_response_header(200, tmp, content.size());
 		return resp;
 		// resp += content;
@@ -647,8 +650,11 @@ void Server::log(string s)
 bool Server::check_methods(t_loc *root, string meth)
 {
 	for (vector<string>::iterator it = root->options.methods.begin(); it != root->options.methods.end(); it++)
+	{
+		cout << "allowed here: " << *it << endl;
 		if (*it == meth)
 			return true;
+	}
 	return false;
 }
 
@@ -696,11 +702,12 @@ int Server::findAvailableWorker(map<int, Worker *> &workers)
 	return (i);
 }
 
-string Server::readPerChunks(Client &client, string method)
+string Server::readPerChunks(Client &client, string method, map<string, string> header)
 {
+	(void)header;
 	static int total = 1;
-	(void)method;
 	string content, temp;
+
 	cout << "on rentre bien dans le read per chumnks\n";
 
 	// cout << client.getContent() << endl;
@@ -709,7 +716,16 @@ string Server::readPerChunks(Client &client, string method)
 	// cout << "[" << temp << "]" << endl;
 	ofstream ofile;
 
-	ofile.open("./default/file_put.text", ios::out);
+	if (!strcmp("PUT", method.c_str()))
+		ofile.open("./default/file_put.text", ios::out);
+	else
+		ofile.open("./default/file_post.text");
+
+int maxBody = -1;
+	t_find file = findAllLoc("./default/file_post.text");
+	if (file.loc->options.params.count("maxBody"))
+		maxBody = atoi(file.loc->options.params.find("maxBody")->second.c_str());
+	
 	// Get the length of the chunk
 	string length_char;
 	int i = 0, length = 0;
@@ -721,6 +737,14 @@ string Server::readPerChunks(Client &client, string method)
 	stringstream stream;
 	stream << hex << length_char;
 	stream >> length;
+	// if (!strcmp("POST", method.c_str()))
+	// {
+	// 	temp[100] = '\0';
+	// 	ofile << temp;
+	// 	sleep(10);
+	// 	ofile.close();
+	// 	return content;
+	// }
 	if (!length)
 		return content;
 	cout << "Taille de la chunk : " << length << endl;
@@ -748,7 +772,7 @@ string Server::readPerChunks(Client &client, string method)
 		stream >> length;
 		if (!length)
 			break;
-		cout << length_char << endl;
+		// cout << length_char << endl;
 		cout << "Taille de la chunk : " << length << " et la taille de temp : " << temp.size() << endl;
 		int length_copy = 0;
 		if (length > static_cast<int>(temp.size()))
@@ -764,7 +788,7 @@ string Server::readPerChunks(Client &client, string method)
 			// content_print.clear();
 			// temp[temp.size()] = '\0';
 			temp.copy(buff, length, 0);
-			cout << "dans le else : " << strlen(buff) << endl;
+			// cout << "dans le else : " << strlen(buff) << endl;
 			temp = &temp.at(length + 2);
 			total += strlen(buff);
 			ofile << buff;
@@ -774,7 +798,7 @@ string Server::readPerChunks(Client &client, string method)
 		}
 
 		int nbytes_read = 0;
-		usleep(1000);
+		usleep(50);
 		do
 		{
 			nbytes_read += recv(client.getSocket(), &buf[strlen(buf)], 65000 - strlen(buf), 0);

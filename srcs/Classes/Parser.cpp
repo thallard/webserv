@@ -49,6 +49,18 @@ bool is_not_whitespace(string line)
 	return false;
 }
 
+bool is_all_digit(string line)
+{
+for (string::iterator it = line.begin(); it != line.end(); it++)
+	{
+		if (isdigit(*it))
+			continue;
+		else
+			return false;
+	}
+	return true;
+}
+
 // LOCATION TREE CREATOR ========================================================================================
 
 void Parser::finishLoc(t_loc *parent, t_loc *child)
@@ -182,14 +194,11 @@ void Parser::addToLoc(map<string, string> loc, vector<string> meth, string path,
 vector<string>Parser::parseMethod(map<string, string> args, string loc, string path, int n)
 {
 	vector<string> methods;
-	(void)loc;
 
 	methods.push_back("GET");
-	//methods.push_back("HEAD");
+
 	if (!args.count("allow_methods"))
 		return methods;
-
-	cout << "go" << endl;
 
 	string list[] = {"GET", "HEAD", "POST", "PUT", "DELETE"};
 
@@ -233,6 +242,11 @@ vector<string>Parser::parseMethod(map<string, string> args, string loc, string p
 	if (!(tmp == "GET"))
 		methods.push_back(tmp);
 	tmp.clear();
+	(void) loc;
+for(vector<string>::iterator it = methods.begin(); it != methods.end(); it++)
+{
+	cout << "For location: " << path << " allow: " << *it << endl;
+}
 	return methods;
 }
 
@@ -342,6 +356,11 @@ map<string, string> Parser::parseLocation(int fd, int *numb, string path, string
 			}
 			else
 			{
+				if (get_key(line) == "maxBody" && (atoi(get_val(line).c_str()) < 0  || !is_all_digit(get_val(line))))
+				{
+					cout << "\e[91minvalid maxBody size in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+					exit(1);
+				}
 				params.insert(make_pair(get_key(line), get_val(line)));
 				//DEBUG cout << "\e[97mlocation params registered: " << line << "\e[0m" << endl;
 				line.clear();
@@ -492,7 +511,7 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 	string index = "index.html";
 
 	map<int, string> error_pages;
-	map<string, map<string, string> > locations;
+	map<string, string> params;
 	map<string, vector<string> > methods;
 	vector<string> allowed;
 
@@ -577,7 +596,8 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 							i = 7;
 							break;
 						case 4:
-							addToLoc(parseLocation(fd, &n, path, line), parseMethod(locations.find(get_val(line))->second, get_val(line), path, n), get_val(line), loc, path, n);
+							params = parseLocation(fd, &n, path, line);
+							addToLoc(params, parseMethod(params, path, line, n), get_val(line), loc, path, n);
 							i = 7;
 							break;
 						case 5:

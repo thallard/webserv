@@ -38,6 +38,7 @@ using namespace std;
 #define STATUS_BAD_REQUEST 400
 #define STATUS_METHOD_NOT_ALLOWED 405
 #define STATUS_NOT_FOUND 404
+#define STATUS_URI_TOO_LONG 414
 #define STATUS_TEAPOT 418
 
 #define DEFAULT_PATH "default/default.conf"
