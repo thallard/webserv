@@ -69,11 +69,11 @@ void *main_loop(void *arg)
 							bzero(buffer, 65535);
 							int len_before_recv = sizeof(buffer);
 							usleep(50);
-							nbytes_read += recv(fd, buffer, 65535 - nbytes_read, 0);
+							nbytes_read += recv(fd, buffer, 60000 - nbytes_read, 0);
 							// cout << buffer << endl;
-							dprintf(1, "debug de la nbytes read = %d\n", nbytes_read);
+							// dprintf(1, "debug de la nbytes read = %d\n", nbytes_read);
 							buff += buffer;
-							if (65535 - nbytes_read <= 0)
+							if (60000 - nbytes_read <= 0)
 							{
 							// cout << buff << endl;
 								dprintf(1, "je rentre rune fois icic\n");

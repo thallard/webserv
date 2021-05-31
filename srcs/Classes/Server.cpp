@@ -108,7 +108,7 @@ void Server::run(map<int, Worker *> &workers)
 	while (1)
 	{
 
-		int retval = 0;
+		int retval = 0, index = 0;
 
 		memcpy(&temp_fd, &_clients_fd, sizeof(_clients_fd));
 		//temp_fd = _clients_fd;
@@ -125,14 +125,15 @@ void Server::run(map<int, Worker *> &workers)
 			// setDescReady(1);
 			// setMaxSD(_max_sd);
 			// dprintf(1, "socket %d\n", _max_sd);
-			workers.find(0)->second->setServer(this);
-			workers.find(0)->second->setIt(0);
-			workers.find(0)->second->setStatus(false);
+			index = findAvailableWorker(workers);
+			workers.find(index)->second->setServer(this);
+			workers.find(index)->second->setIt(0);
+			workers.find(index)->second->setStatus(false);
 
-			workers.find(0)->second->setSocket(12);
-			while (!workers.find(0)->second->getStatus())
+			workers.find(index)->second->setSocket(12);
+			while (!workers.find(index)->second->getStatus())
 				;
-			workers.find(0)->second->setIt(0);
+			workers.find(index)->second->setIt(0);
 			// socklen_t clilen = sizeof(getCliAddr());
 
 			// pthread_mutex_lock(getLogger());
@@ -410,7 +411,6 @@ t_file Server::getFile(string path)
 
 void Server::handle_request(Client &client)
 {
-	// std::cout << "fdp de ta mere\n";
 	string type[4] = {"GET", "POST", "HEAD", "PUT"};
 	string (Server::*command[])(map<string, string>, Client &) = {&Server::GET, &Server::POST, &Server::HEAD, &Server::PUT};
 	string buffer = client.getContent();
@@ -421,34 +421,18 @@ void Server::handle_request(Client &client)
 	map<string, string> p_request = request.last();
 	string response, req_type = p_request.find("Request-Type")->second;
 
-	// DEBUG
-	// cout << "le content ici : " << p_request.find("Content")->second << endl;
 	std::cout << "Request :" << endl
 			  << buffer << endl
 			  << "=====" << endl;
 
-	// std::cout << "allo2 |" << req_type << "|" << type[3] << "| " << p_request.find("Location")->second << "\n";
 	for (size_t i = 0; i <= type->size(); i++)
 	{
-		// A PATCH LA BOUCLE NE TROUVE PAS LE DERNIER ELEMENT DE LA STRING
-		if (!strcmp("PUT", type[i].c_str()))
+		if (!strncmp(req_type.c_str(), type[i].c_str(), req_type.size()))
 		{
-			response = (this->*command[i])(p_request, client);
-		}
-		else if (!strncmp(req_type.c_str(), type[i].c_str(), req_type.size()))
-		{
-
 			if (check_methods(findAllLoc(p_request.find("Location")->second).loc, req_type))
-			{
-				std::cout << "ici\n";
 				response = (this->*command[i])(p_request, client);
-			}
-
 			else
-			{
-				log("\e[1;93mMethod Not Allowed!\e[0m");
 				response = SEND_ERROR(STATUS_METHOD_NOT_ALLOWED, "Method Not Allowed");
-			}
 			break;
 		}
 		else if (i == type->size())
@@ -464,14 +448,9 @@ void Server::handle_request(Client &client)
 			  << response << endl
 			  << endl;
 
-	// std::cout << client.getSocket() << " et la taille : " << response << endl;
-	std::cout << "\e[31m JE WRITE \n\e[0m";
 	n = send(client.getSocket(), response.c_str(), response.size(), 0);
-	//n = write(sock, response.c_str(), strlen(response.c_str()));
-	// std::cout << "allo4\n";
 	if (n < 0)
 		error("Can't send the response");
-	// close(client.getSocket());
 }
 
 void Server::error(const char *s)
@@ -483,54 +462,41 @@ void Server::error(const char *s)
 //PAS FINIS
 string Server::POST(map<string, string> header, Client &client)
 {
-	(void)client;
-	log("\e[1;93m[POST -> " + header.find("Location")->second + "]\e[0m");
-
-	(void)socket;
 	Headers tmp;
-	string resp, content;
+	string resp, content = header.find("Content")->second.c_str();
+	int nb_print = 0;
+	char buffer[65535];
+	ofstream ofile;
 
-	// A patch des que getfile marche
-	string path = "default" + header.find("Location")->second;
-	//struct stat sb;
-
-	const char *content_char = header.find("Content")->second.c_str();
-	if (header.find("Content-Length")->second == "0")
+	// Check if the content is chunked
+	if (!strncmp(header.find("Transfer-Encoding")->second.c_str(), "chunked", 8))
 	{
-		return (tmp.return_response_header(STATUS_NO_CONTENT, tmp, 0));
+		readPerChunks(client, "POST");
+		resp = tmp.return_response_header(STATUS_OK, tmp, 0);
+		return resp;
 	}
-	// std::cout << content_char << endl;
 
-	const char *to_print = content_char;
+	if (header.find("Content-Length")->second == "0")
+		return (tmp.return_response_header(STATUS_NO_CONTENT, tmp, 0));
 
 	t_file file = getFile(header.find("Location")->second);
 	if (header.count("Content") && !header.find("Content")->second.size())
 		resp = SEND_ERROR(STATUS_NO_CONTENT, "No Content");
 
-	// A UPDATE tres rapidement des que le GetFile est patch
-	std::cout << "ici1\n";
-	// std::cout << " je print :" << to_print << ":\n";
-	int nb_prints, fd = open("default/file.txt", O_WRONLY | O_NONBLOCK, 0777);
-	std::cout << "je crash ici\n";
-	// istringstream iss(header.find("Content-Length")->second);
-	std::cout << "je crash ici\n";
-	size_t remaining_characters, count = 0;
-	remaining_characters = header.find("Content")->second.size();
-	while (count < remaining_characters)
+	// Open the file and print content in
+	ofile.open("default/file_post.txt", ios::app);
+
+	while (nb_print < atoi(header.find("Content-Length")->second.c_str()))
 	{
-		if (65535 < count)
-			nb_prints = 65535;
-		else
-		{
-			to_print = content_char + count;
-			nb_prints = strlen(content_char);
-		}
-		// std::cout << "nb_prints = " << nb_prints << " toPrint = " << to_print << endl;
-		count += write(fd, to_print, nb_prints);
-		// std::cout <<  count << endl;
+		bzero(buffer, 65535);
+
+		nb_print += content.size();
+		ofile << content;
+		content.clear();
+
+		recv(client.getSocket(), buffer, 65535, 0);
+		content = buffer;
 	}
-	std::cout << "ici2\n";
-	close(fd);
 
 	resp = tmp.return_response_header(200, tmp, file.size);
 	return resp;
@@ -644,6 +610,8 @@ string Server::SEND_ERROR(int status, const char *msg)
 	char c;
 	size_t pos;
 
+	log("\e[1;31m[Method Not Allowed]\e[0;0m");
+
 	int fd = open("default/error.html", O_RDONLY | O_NONBLOCK);
 	while (read(fd, &c, 1))
 		file.content.push_back(c);
@@ -730,67 +698,88 @@ int Server::findAvailableWorker(map<int, Worker *> &workers)
 
 string Server::readPerChunks(Client &client, string method)
 {
-	string content, temp, length_char;
-	stringstream stream;
+	static int total = 1;
+	(void)method;
+	string content, temp;
+	cout << "on rentre bien dans le read per chumnks\n";
+
+	// cout << client.getContent() << endl;
+	size_t pos = client.getContent().find("\r\n\r\n", 0);
+	temp = &client.getContent().at(pos + 4);
+	// cout << "[" << temp << "]" << endl;
 	ofstream ofile;
 
-	temp = &client.getContent().at(client.getContent().find("\r\n\r\n", 0) + 4);
-
-	if (!strncmp(method.c_str(), "PUT", 3))
-		ofile.open("./default/file_put.text", ios::out);
-	else
-		ofile.open("./default/file_post.txt", ios::out | ios::app);
-
+	ofile.open("./default/file_put.text", ios::out);
 	// Get the length of the chunk
+	string length_char;
 	int i = 0, length = 0;
 	while (temp.at(i) != '\r' && temp.at(i) != '\n')
 		length_char += temp.at(i++);
 
-	// Remove hexadecimal characters and \r\n from temp + transform hexadecimal length to decimal
+	// Remove hexadecimal characters and \r\n + transform hexadecimal length to decimal
 	temp = &temp.at(i + 2);
+	stringstream stream;
 	stream << hex << length_char;
 	stream >> length;
-
+	if (!length)
+		return content;
+	cout << "Taille de la chunk : " << length << endl;
 	// Append existent content from worker's recv
 	for (int j = 0; j < length; j++)
 		content += temp.at(j);
 	temp = &temp.at(length + 2);
+	cout << "Dernier charactere du temp : " << temp.size() << endl;
 	ofile << content;
 	char buff[length + 1];
 
+	// int remaining_characters;
 	while (true)
 	{
 		char buf[65535];
 		bzero(buf, 65535);
 		length_char.clear();
-		int length_copy = 0, i = 0, nbytes_read = 0;
-
+		i = 0;
 		while (temp.at(i) != '\r' && temp.at(i) != '\n')
 			length_char += temp.at(i++);
 		temp = &temp.at(i + 2);
 
-	stringstream stream;
+		stringstream stream;
 		stream << hex << length_char;
 		stream >> length;
 		if (!length)
 			break;
+		cout << length_char << endl;
+		cout << "Taille de la chunk : " << length << " et la taille de temp : " << temp.size() << endl;
+		int length_copy = 0;
 		if (length > static_cast<int>(temp.size()))
 		{
 			ofile << temp;
+			// content.copy((char *)temp.c_str(), )
+			total += temp.size();
 			length_copy = temp.size();
 		}
 		else
 		{
 			bzero(buff, length + 1);
+			// content_print.clear();
+			// temp[temp.size()] = '\0';
 			temp.copy(buff, length, 0);
+			cout << "dans le else : " << strlen(buff) << endl;
 			temp = &temp.at(length + 2);
+			total += strlen(buff);
 			ofile << buff;
 			continue;
+			// ofile.close();
+			// break ;
 		}
-		usleep(50);
+
+		int nbytes_read = 0;
+		usleep(1000);
 		do
 		{
 			nbytes_read += recv(client.getSocket(), &buf[strlen(buf)], 65000 - strlen(buf), 0);
+			// log("\e[1;93m[recv() read " + to_string(nbytes_read) + " characters]\e[0;0m");
+			// cout << nbytes_read << endl;
 			if (strstr(buf, "0\r\n\r\n"))
 				break;
 		} while (65000 - strlen(buf) > 1);
@@ -799,11 +788,88 @@ string Server::readPerChunks(Client &client, string method)
 		temp = buf;
 		bzero(buff, length + 1);
 		temp.copy(buff, length - length_copy, 0);
+		total += strlen(buff);
 		ofile << buff;
 		temp = &temp.at(length - length_copy + 2);
 		content.clear();
 	}
+	cout << "Characteres print de mon cote : " << total << " vrai nombre que je devrais print : " << 10000000 << endl;
 	content.clear();
 	ofile.close();
+	// string content, temp, length_char;
+	// stringstream stream;
+	// ofstream ofile;
+
+	// temp = &client.getContent().at(client.getContent().find("\r\n\r\n", 0) + 4);
+
+	// if (!strncmp(method.c_str(), "PUT", 3))
+	// 	ofile.open("./default/file_put.text", ios::out);
+	// else
+	// 	ofile.open("./default/file_post.txt", ios::out | ios::app);
+
+	// // Get the length of the chunk
+	// int i = 0, length = 0;
+	// while (temp.at(i) != '\r' && temp.at(i) != '\n')
+	// 	length_char += temp.at(i++);
+
+	// // Remove hexadecimal characters and \r\n from temp + transform hexadecimal length to decimal
+	// temp = &temp.at(i + 2);
+	// stream << hex << length_char;
+	// stream >> length;
+
+	// // Append existent content from worker's recv
+	// for (int j = 0; j < length; j++)
+	// 	content += temp.at(j);
+	// temp = &temp.at(length + 2);
+	// ofile << content;
+	// char buff[length + 1];
+
+	// while (true)
+	// {
+	// 	char buf[65535];
+	// 	bzero(buf, 65535);
+	// 	length_char.clear();
+	// 	int length_copy = 0, i = 0, nbytes_read = 0;
+
+	// 	while (temp.at(i) != '\r' && temp.at(i) != '\n')
+	// 		length_char += temp.at(i++);
+	// 	temp = &temp.at(i + 2);
+
+	// stringstream stream;
+	// 	stream << hex << length_char;
+	// 	stream >> length;
+	// 	if (!length)
+	// 		break;
+	// 	if (length > static_cast<int>(temp.size()))
+	// 	{
+	// 		ofile << temp;
+	// 		length_copy = temp.size();
+	// 	}
+	// 	else
+	// 	{
+	// 		bzero(buff, length + 1);
+	// 		temp.copy(buff, length, 0);
+	// 		temp = &temp.at(length + 2);
+	// 		ofile << buff;
+	// 		continue;
+	// 	}
+	// 	usleep(50);
+	// 	do
+	// 	{
+	// 		nbytes_read += recv(client.getSocket(), &buf[strlen(buf)], 65000 - strlen(buf), 0);
+	// 		if (strstr(buf, "0\r\n\r\n"))
+	// 			break;
+	// 	} while (65000 - strlen(buf) > 1);
+
+	// 	temp.clear();
+	// 	temp = buf;
+	// 	bzero(buff, length + 1);
+	// 	temp.copy(buff, length - length_copy, 0);
+	// 	ofile << buff;
+	// 	temp = &temp.at(length - length_copy + 2);
+	// 	content.clear();
+	// }
+	// content.clear();
+	// ofile.close();
 	return (content);
 }
