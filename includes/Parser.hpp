@@ -26,6 +26,7 @@ class Parser
 		void addToLoc(map<string, string> ,vector<string>,string, t_loc *, string, int);
 		
 map<string, string> parseLocation(int , int *, string , string );
+pair<string, map<string, vector<string> > > parseExtension(int, int *, string , string, string);
 void finishLoc(t_loc *, t_loc *);
 		int _i;
 

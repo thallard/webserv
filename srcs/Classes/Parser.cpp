@@ -2,9 +2,11 @@
 
 // UTILS ============================================================================================
 
-string trim_whitespace(string line)
+string trim_whitespace(string s)
 {
-	return string(line, line.find_first_not_of("\t\n\v\f\r "), line.find_last_not_of("\t\n\v\f\r ") + 1);
+	 s.erase(s.find_last_not_of("\t\n\v\f\r ") + 1);
+	 s.erase(0, s.find_first_not_of("\t\n\v\f\r "));
+	 return s;
 }
 
 string get_key(string line)
@@ -268,9 +270,9 @@ vector<string> Parser::parseMethod(string parsed, string path, int n)
 		{
 			if (!tmp.size())
 				continue;
-			for (size_t i = 0; i < 7; i++)
+			for (size_t i = 0; i < 6; i++)
 			{
-				if (i == 6)
+				if (i == 5)
 				{
 					cout << "\e[91m[\e[1;39m" << tmp << "\e[91m] is an unexcepted method in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
 					exit(1);
@@ -300,6 +302,82 @@ vector<string> Parser::parseMethod(string parsed, string path, int n)
 		methods.push_back(tmp);
 	tmp.clear();
 	return methods;
+}
+
+// Get params of an extension
+
+pair<string, map<string, vector<string> > > Parser::parseExtension(int fd, int *numb, string path, string line, string ext)
+{
+	string loc = get_val(line);
+	map<string, vector<string> > params;
+
+	line.clear();
+
+	bool in = false;
+	bool start = false;
+
+	int ret;
+	int n = *numb;
+
+	char c;
+
+	while ((ret = read(fd, &c, 1)) > 0)
+	{
+		if (c == '#')
+			while ((ret = read(fd, &c, 1)) > 0)
+				if (c == '\n')
+					break;
+		if (c == '\t')
+			continue;
+		if (c != '\n')
+			line.push_back(c);
+		else
+		{
+			if (!start && line.find_first_of('{') != line.npos)
+			{
+				line.clear();
+				start = true;
+				;
+				in = true;
+				continue;
+			}
+			else if (line.find_first_of('}') != line.npos)
+			{
+				if (!start)
+				{
+					cout << "\e[91mmissing '\e[1;91m{\e[0;91m' in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+					exit(1);
+				}
+				in = false;
+				break;
+			}
+			else if (!is_not_whitespace(line))
+			{
+				line.clear();
+				continue;
+			}
+			else
+			{
+				if (get_key(line) == "allow_methods")
+					params.insert(make_pair(get_key(line), parseMethod(get_val(line), path, n)));
+				else
+				{
+					vector<string> elem;
+					elem.push_back(get_val(line));
+					params.insert(make_pair(get_key(line), elem));
+				}
+				//DEBUG cout << "\e[97mlocation params registered: " << line << "\e[0m" << endl;
+				line.clear();
+			}
+		}
+	}
+	if (in)
+	{
+		cout << "\e[91mmissing '\e[1;91m}\e[0;91m' in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+		exit(1);
+	}
+cout << "Extension " << ext << " parsed !" << endl;
+	return make_pair(ext, params);
 }
 
 // Get params of a specific location
@@ -514,11 +592,12 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 	map<string, string> params;
 	map<string, vector<string> > methods;
 	vector<string> allowed;
+	map<string, map<string, vector<string> > > extension;
 
 	error_pages.insert(make_pair(404, "default/error.html"));
 	error_pages.insert(make_pair(405, "default/error.html"));
 
-	string possible[] = {"listen", "server_name", "root", "error_pages", "location", "index", "allow_methods"};
+	string possible[] = {"listen", "server_name", "root", "error_pages", "location", "index", "allow_methods", "extension"};
 
 	line.clear();
 	while ((ret = read(fd, &c, 1)) > 0)
@@ -563,9 +642,9 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 					line.clear();
 					continue;
 				}
-				for (int i = 0; i < 8 /*replace by 4 */; i++)
+				for (int i = 0; i < 9 /*replace by 4 */; i++)
 				{
-					if (i == 7)
+					if (i == 8)
 					{
 						cout << "\e[91m[\e[1;39m" << get_key(line) << "\e[91m] is an unexcepted identifier in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
 						exit(1);
@@ -581,32 +660,36 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 								cout << "\e[91m[\e[1;39m" << line << "\e[91m] invalid port in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
 								exit(1);
 							}
-							i = 7;
+							i = 8;
 							break;
 						case 1:
 							name = get_val(line);
-							i = 7;
+							i = 8;
 							break;
 						case 2:
 							root = get_val(line);
-							i = 7;
+							i = 8;
 							break;
 						case 3:
 							error_pages = parseErrorPages(fd, &n, error_pages, path);
-							i = 7;
+							i = 8;
 							break;
 						case 4:
 							params = parseLocation(fd, &n, path, line);
 							addToLoc(params, parseMethod(params, path, line, n), get_val(line), loc, path, n);
-							i = 7;
+							i = 8;
 							break;
 						case 5:
 							index = get_val(line);
-							i = 7;
+							i = 8;
 							break;
 						case 6:
 							allowed = parseMethod(get_val(line), path, n);
-							i = 7;
+							i = 8;
+							break;
+						case 7:
+							extension.insert(parseExtension(fd, &n, path, line, get_val(line)));
+							i = 8;
 							break;
 						default:
 							break;
@@ -644,7 +727,7 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 	cout << endl << endl;
 
 	*numb = n;
-	_t_preServ preServ = {_pre_Serv.size(), port, name, error_pages,loc};
+	_t_preServ preServ = {_pre_Serv.size(), port, name, error_pages,loc, extension};
 
 	_pre_Serv.push_back(preServ);
 }
@@ -668,7 +751,7 @@ Parser::Parser(string path)
 		exit(1);
 	}
 	_count_workers = 1;
-	string possible[] = {"workers", "events", "server"};
+	string possible[] = {"workers", "server"};
 	char c;
 	string line;
 	int ret;
@@ -687,7 +770,7 @@ Parser::Parser(string path)
 			n++;
 			if (!is_not_whitespace(line))
 				continue;
-			for (int i = 0; i < 3 /*replace by 4 */; i++)
+			for (int i = 0; i < 2 ; i++)
 			{
 				if (i == 3)
 				{
@@ -703,9 +786,6 @@ Parser::Parser(string path)
 						i = 4;
 						break;
 					case 1:
-						i = 4;
-						break;
-					case 2:
 						parseServer(fd, line, path, &n);
 						i = 4;
 						break;

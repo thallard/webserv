@@ -69,6 +69,7 @@ typedef struct _s_preServ
 	string name;
 	map<int, string> err;
 	t_loc *_root;
+	map<string, map<string, vector<string> > > ext;
 } 			_t_preServ;
 
 typedef struct s_find
@@ -81,5 +82,10 @@ typedef struct s_find
 int dispatcher_type_requests(map<string, string> request);
 void *main_loop(void * arg);
 
+string trim_whitespace(string s);
+
+string get_key(string line);
+
+string get_val(string line);
 
 #endif

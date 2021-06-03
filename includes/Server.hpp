@@ -29,6 +29,7 @@ private:
 
 	string _name;
 	t_loc *_root;
+	map<string, map<string, vector<string> > > _extensions;
 
 	map<int, string> _error_pages;
 	map<int, Worker *> _workers;
@@ -74,7 +75,7 @@ public:
 	void run(map<int, Worker *> &);
 	void error(const char *);
 	void log(string);
-	bool check_methods(t_loc *, string);
+	bool check_methods(t_loc *, string, string);
 	t_loc *findInLoc(string, t_loc *);
 	t_find findAllLoc(string);
 	void handle_request(Client &);
