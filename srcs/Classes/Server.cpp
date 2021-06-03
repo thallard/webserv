@@ -69,6 +69,7 @@ Server::Server(_t_preServ pre, pthread_mutex_t *logger)
 	_name = pre.name;
 	_error_pages = pre.err;
 	_root = pre._root;
+	_extensions = pre.ext;
 }
 
 Server::~Server()
@@ -429,7 +430,7 @@ void Server::handle_request(Client &client)
 	{
 		if (!strncmp(req_type.c_str(), type[i].c_str(), req_type.size()))
 		{
-			if (check_methods(findAllLoc(p_request.find("Location")->second).loc, req_type))
+			if (check_methods(findAllLoc(p_request.find("Location")->second).loc, req_type, p_request.find("Location")->second))
 				response = (this->*command[i])(p_request, client);
 			else
 				response = SEND_ERROR(STATUS_METHOD_NOT_ALLOWED, "Method Not Allowed");
@@ -470,11 +471,102 @@ string Server::POST(map<string, string> header, Client &client)
 	char buffer[65535];
 	ofstream ofile;
 
+	string loc = header.find("Location")->second;
+
 	log("\e[1;93m[POST -> " + header.find("Location")->second + "]\e[0m");
-	// Check if the content is chunked
-	if (!strncmp(header.find("Transfer-Encoding")->second.c_str(), "chunked", 8))
+	string extension;
+	for (string::reverse_iterator it = loc.rbegin(); it != loc.rend(); it++)
 	{
-		readPerChunks(client, "POST", header);
+		extension.insert(extension.begin(), *it);
+		if (*it == '.')
+			break;
+	}
+	if (_extensions.count(extension) && _extensions.find(extension)->second.count("allow_methods"))
+	{
+	}
+
+	cout << "La location : " << loc << endl;
+	// size_t pos;
+	//if ((pos = loc.rfind(".bla", loc.size() - 4)) != loc.npos)
+	if (_extensions.count(extension) && _extensions.find(extension)->second.count("cgi_path"))
+	{
+
+		cout << "j'ai un .bla a la fin batard" << endl;
+		char *env[15];
+		env[0] = (char *)"REMOTE_HOST=127.0.0.1";
+		env[1] = (char *)"SERVER_NAME=webserv";
+		env[2] = (char *)"SERVER_PORT=8080";
+		env[3] = (char *)"SERVER_PROTOCOL=HTTP/1.1";
+		env[4] = (char *)"SERVER_SOFTWARE=HTTP/1.1";
+		env[5] = (char *)"REQUEST_METHOD=POST";
+		env[6] = (char *)"PATH_INFO=/Users/thallard/Documents/42/webserv/YoupiBanane/youpi.bla";
+		// env[7] = (char *)"SCRIPT_NAME=/Users/thallard/Documents/42/webserv";
+		env[7] = (char *)NULL;
+		char *cgi[3] = {(char *)_extensions.find(extension)->second.find("cgi_path")->second.at(0).c_str(), NULL};
+		pid_t forke;
+		int ret = 0;
+		// int fd = 0;
+		int pipe1[2];
+		int pipe2[2];
+		if (pipe(pipe1) == -1 || pipe(pipe2) == -1)
+		{
+			perror("Pipe failed");
+			exit(EXIT_FAILURE);
+		}
+		forke = fork();
+		if (forke < 0)
+		{
+			perror("Fork failed");
+			exit(EXIT_FAILURE);
+		}
+		if (forke == 0)
+		{
+			// fd = open("default/file.txt", 0777);
+			dup2(pipe1[0], STDIN_FILENO);
+			close(pipe1[0]);
+			close(pipe1[1]);
+			dup2(pipe2[1], STDOUT_FILENO);
+			close(pipe2[0]);
+			close(pipe2[1]);
+			ret = execve(cgi[0], cgi, env);
+			int errnum = errno;
+			fprintf(stderr, "Failed to execute '%s' (%d: %s)\n", "tqt ", errnum, strerror(errnum));
+			exit(EXIT_FAILURE);
+		}
+		else
+		{
+			close(pipe1[0]);
+			int oui = write(pipe1[1], "Bonjour\n", 9);
+			if (oui <= 0)
+			{
+				perror("Failed to write from pipe");
+				exit(EXIT_FAILURE);
+			}
+			close(pipe1[1]);
+			char buf[1550];
+
+			int nb = read(pipe2[0], &buf, 1000);
+			if (nb <= 0)
+			{
+				perror("Failed to read from pipe");
+				exit(EXIT_FAILURE);
+			}
+			dprintf(1, "le buf : [%s]\n", buf);
+			close(pipe2[0]);
+			// close(fd);
+			// waitpid(forke, NULL, 1);
+		}
+		cout << errno << endl;
+		cout << strerror(errno) << endl;
+		cout << ret << endl;
+		// exit(1);
+	}
+
+	// Check if the content is chunked
+	if (header.count("Transfer-Encoding") && !strncmp(header.find("Transfer-Encoding")->second.c_str(), "chunked", 8))
+	{
+		// readPerChunks(client, "POST", header);
+
 		resp = tmp.return_response_header(STATUS_OK, tmp, 0);
 		return resp;
 	}
@@ -647,9 +739,27 @@ void Server::log(string s)
 	pthread_mutex_unlock(_logger);
 }
 
-bool Server::check_methods(t_loc *root, string meth)
+bool Server::check_methods(t_loc *root, string meth, string loc)
 {
-	for (vector<string>::iterator it = root->options.methods.begin(); it != root->options.methods.end(); it++)
+	string extension;
+	vector<string> allowed;
+	//loc = trim_whitespace(loc);
+	for (string::reverse_iterator it = loc.rbegin(); it != loc.rend(); it++)
+	{
+		extension.insert(extension.begin(), *it);
+		if (*it == '.')
+			break;
+	}
+	cout << "extension: |" << extension << "|" << endl;
+	if (_extensions.count(extension) && _extensions.find(extension)->second.count("allow_methods"))
+	{
+		cout << "found custom extension !" << endl;
+		allowed = _extensions.find(extension)->second.find("allow_methods")->second;
+	}
+	else
+		allowed = root->options.methods;
+
+	for (vector<string>::iterator it = allowed.begin(); it != allowed.end(); it++)
 	{
 		cout << "allowed here: " << *it << endl;
 		if (*it == meth)
@@ -721,11 +831,11 @@ string Server::readPerChunks(Client &client, string method, map<string, string> 
 	else
 		ofile.open("./default/file_post.text");
 
-int maxBody = -1;
+	int maxBody = -1;
 	t_find file = findAllLoc("./default/file_post.text");
 	if (file.loc->options.params.count("maxBody"))
 		maxBody = atoi(file.loc->options.params.find("maxBody")->second.c_str());
-	
+
 	// Get the length of the chunk
 	string length_char;
 	int i = 0, length = 0;

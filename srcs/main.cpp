@@ -134,14 +134,14 @@ void *run(void *arg)
 	return (NULL);
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[], char **env)
 {
 	string path;
 	if (argc < 2)
 		path = "./default/default.conf";
 	else
 		path = argv[1];
-
+	cout << env[0] << endl;
 	Core core(path);
 
 	// Threads for multi-workers
