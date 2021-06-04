@@ -23,6 +23,7 @@ class Parser
 		void parseServer(int, string, string, int *);
 		vector<string> parseMethod(map<string, string>, string, string, int);
 		vector<string> parseMethod(string, string, int);
+		void parsePort(vector<int> *, string, string, int);
 		void addToLoc(map<string, string> ,vector<string>,string, t_loc *, string, int);
 		
 map<string, string> parseLocation(int , int *, string , string );

@@ -26,6 +26,9 @@ private:
 
 	int _id;
 	int _socket;
+	int _port;
+
+	bool _auto_index;
 
 	string _name;
 	t_loc *_root;

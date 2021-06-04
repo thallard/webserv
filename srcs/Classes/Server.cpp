@@ -40,6 +40,8 @@ Server::Server(_t_preServ pre, pthread_mutex_t *logger)
 	_id = pre.id;
 	_logger = logger;
 
+	_port = pre.port;
+
 	log("\e[33;1m[Starting ...]");
 	thread = new pthread_t;
 	_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -70,6 +72,7 @@ Server::Server(_t_preServ pre, pthread_mutex_t *logger)
 	_error_pages = pre.err;
 	_root = pre._root;
 	_extensions = pre.ext;
+	_auto_index = pre.auto_index;
 }
 
 Server::~Server()
@@ -92,6 +95,9 @@ Server &Server::operator=(Server const &ref)
 	_error_pages = ref._error_pages;
 
 	_root = ref._root;
+	_auto_index = ref._auto_index;
+	_port = ref._port;
+	_extensions = ref._extensions;
 
 	return *this;
 }
@@ -373,6 +379,7 @@ t_file Server::getFile(string path)
 	if (pos == 1)
 		pos--;
 
+	string a_i = path;
 	path.erase(0, pos);
 
 	//std::cout << "path sub: " << path << endl;
@@ -384,14 +391,92 @@ t_file Server::getFile(string path)
 	//Rajouter if auto-index
 	if ((fd = open(path.c_str(), O_RDONLY | O_NONBLOCK | O_DIRECTORY)) != -1)
 	{
-		if (!founded.loc->options.params.count("index"))
+		if (!_auto_index)
 		{
-			std::cout << "Directory !" << endl;
+			if (!founded.loc->options.params.count("index"))
+			{
+				std::cout << "Directory !" << endl;
+				close(fd);
+				return file;
+			}
+			else
+				path += founded.loc->options.params.find("index")->second;
+		}
+		else
+		{
+			file.content = "<html> <head><title>Index of " + a_i + "</title></head> <body bgcolor=\"white\"> <h1>Index of "+ a_i +"</h1><hr><pre>\n";
+			
+			DIR *dir;
+			DIR *dir_tmp;
+
+			struct dirent *ent;
+			size_t size;
+			size_t size_2;
+			if ((dir_tmp = opendir (path.c_str())) != NULL)
+			{
+				size_2 = 0;
+				while ((ent = readdir (dir_tmp)) != NULL)
+				{
+					struct stat buf;
+					bzero(&buf, sizeof(buf));
+					stat(string(path+ "/" + string(ent->d_name)).c_str(), &buf);
+					string size_file = to_string(buf.st_size);
+					if (size_2 < size_file.size())
+						size_2 = size_file.size();
+				}
+			}
+			if ((dir = opendir (path.c_str())) != NULL)
+			{
+				size = file.content.size();
+				while ((ent = readdir (dir)) != NULL)
+				{
+					size = string(ent->d_name).size();
+					if (ent->d_type == DT_DIR)
+					{
+						size++;
+						file.content += "<a href=\"" + string(ent->d_name) + "/\">" + string(ent->d_name) + "/</a>";
+					}
+					else
+						file.content += "<a href=\"" + string(ent->d_name) + "\">" + string(ent->d_name) + "</a>";
+					if (string(ent->d_name) != ".." && string(ent->d_name) != ".")
+					{
+						while (size++ < 51)
+							file.content += " ";
+						struct stat buf;
+						bzero(&buf, sizeof(buf));
+						stat(string(path+ "/" + string(ent->d_name)).c_str(), &buf);
+
+					struct timeval tv;
+					time_t t;
+					struct tm *info;
+					char buffer[64];
+
+					gettimeofday(&tv, NULL);
+					t = tv.tv_sec;
+
+					info = localtime(&(buf.st_mtime));
+					strftime(buffer, sizeof(buffer), "%d-%b-%Y %H:%M", info);
+						file.content += buffer;
+						size_t i = 0;
+						while (i++ < 20 - size_2)
+							file.content += " ";
+						string size_file = to_string(buf.st_size);
+						i = size_file.size();
+						while (i++ != size_2)
+							file.content += " ";
+						file.content += size_file;
+						
+					}
+					file.content += "\n";
+				}
+				
+				closedir (dir);
+			}
+			file.content += "</pre><hr></body> </html> ";
+			file.size = file.content.size();
 			close(fd);
 			return file;
 		}
-		else
-			path += founded.loc->options.params.find("index")->second;
 		close(fd);
 	}
 	//std::cout << "2:    " << path << endl;
@@ -554,7 +639,7 @@ string Server::POST(map<string, string> header, Client &client)
 			dprintf(1, "le buf : [%s]\n", buf);
 			close(pipe2[0]);
 			// close(fd);
-			// waitpid(forke, NULL, 1);
+			 waitpid(forke, NULL, 1);
 		}
 		cout << errno << endl;
 		cout << strerror(errno) << endl;
@@ -707,7 +792,13 @@ string Server::SEND_ERROR(int status, const char *msg)
 
 	log("\e[1;31m[Method Not Allowed]\e[0;0m");
 
-	int fd = open("default/error.html", O_RDONLY | O_NONBLOCK);
+	string page;
+	if (_error_pages.count(status))
+		page = _error_pages.find(status)->second;
+	else
+		page = "default/error.html";
+	cout << page << endl;
+	int fd = open(page.c_str(), O_RDONLY | O_NONBLOCK);
 	while (read(fd, &c, 1))
 		file.content.push_back(c);
 	while ((pos = file.content.find("_CODE_")) != file.content.npos)
@@ -733,8 +824,8 @@ void Server::log(string s)
 	t = tv.tv_sec;
 
 	info = localtime(&t);
-	strftime(buffer, sizeof buffer, "[%c]", info);
-	std::cout << "\e[1;" << to_string(93 + _id) << "m[SERVER " << _id << "]\e[0m" << s << " \e[1;90m" << buffer << "\e[0m" << endl;
+	strftime(buffer, sizeof(buffer), "[%c]", info);
+	std::cout << "\e[1;" << to_string(93 + _id) << "m[SERVER " << _id << "::" << _port << "]\e[0m" << s << " \e[1;90m" << buffer << "\e[0m" << endl;
 
 	pthread_mutex_unlock(_logger);
 }

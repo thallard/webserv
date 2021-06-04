@@ -24,6 +24,7 @@
 #include <list>
 #include <pthread.h>
 #include <errno.h>
+#include <dirent.h>
 using namespace std;
 
 
@@ -70,6 +71,7 @@ typedef struct _s_preServ
 	map<int, string> err;
 	t_loc *_root;
 	map<string, map<string, vector<string> > > ext;
+	bool auto_index;
 } 			_t_preServ;
 
 typedef struct s_find

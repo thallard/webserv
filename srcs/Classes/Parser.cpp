@@ -566,6 +566,33 @@ void Parser::setWorkers(string line)
 	_count_workers = nb;
 }
 
+void Parser::parsePort(vector<int> *ports, string line, string path, int n)
+{
+	size_t pos;
+	string split;
+	int port;
+	while ((pos = line.find(",")) != string::npos)
+	{
+		
+		split = trim_whitespace(line.substr(0, pos));
+		if (!is_all_digit(split) || !(port = atoi(split.c_str())))
+		{
+			cout << "\e[1;91mInvalid port's character in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+			exit(1);
+		}
+		ports->push_back(port);
+		line.erase(0, pos + 1);
+	}
+	line = trim_whitespace(line);
+	if (!is_all_digit(line) || !(port = atoi(line.c_str())))
+	{
+		cout << "\e[1;91mInvalid port's character in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+		exit(1);
+	}
+	ports->push_back(port);
+}
+
+
 //TODO if port exist, default_server > other
 
 void Parser::parseServer(int fd, string line, string path, int *numb)
@@ -574,12 +601,11 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 	bool start = false;
 	bool in = false;
 
-	int port = DEFAULT_PORT;
 	int ret;
 	int n = *numb;
 
 	char c;
-
+	vector<int> ports;
 	t_loc *loc = new t_loc();
 	loc->path = "/";
 	loc->parent = NULL;
@@ -587,6 +613,7 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 	string name = "default_server";
 	string root = "./default";
 	string index = "index.html";
+	int auto_index = -1;
 
 	map<int, string> error_pages;
 	map<string, string> params;
@@ -594,10 +621,8 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 	vector<string> allowed;
 	map<string, map<string, vector<string> > > extension;
 
-	error_pages.insert(make_pair(404, "default/error.html"));
-	error_pages.insert(make_pair(405, "default/error.html"));
 
-	string possible[] = {"listen", "server_name", "root", "error_pages", "location", "index", "allow_methods", "extension"};
+	string possible[] = {"listen", "server_name", "root", "error_pages", "location", "index", "allow_methods", "extension", "auto_index"};
 
 	line.clear();
 	while ((ret = read(fd, &c, 1)) > 0)
@@ -642,9 +667,9 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 					line.clear();
 					continue;
 				}
-				for (int i = 0; i < 9 /*replace by 4 */; i++)
+				for (int i = 0; i < 10 /*replace by 4 */; i++)
 				{
-					if (i == 8)
+					if (i == 9)
 					{
 						cout << "\e[91m[\e[1;39m" << get_key(line) << "\e[91m] is an unexcepted identifier in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
 						exit(1);
@@ -654,42 +679,49 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 						switch (i)
 						{
 						case 0:
-							port = atoi(get_val(line).c_str());
-							if (!port)
-							{
-								cout << "\e[91m[\e[1;39m" << line << "\e[91m] invalid port in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
-								exit(1);
-							}
-							i = 8;
+							parsePort(&ports, trim_whitespace(get_val(line)), path, n);
+							i = 9;
 							break;
 						case 1:
 							name = get_val(line);
-							i = 8;
+							i = 9;
 							break;
 						case 2:
 							root = get_val(line);
-							i = 8;
+							i = 9;
 							break;
 						case 3:
 							error_pages = parseErrorPages(fd, &n, error_pages, path);
-							i = 8;
+							i = 9;
 							break;
 						case 4:
 							params = parseLocation(fd, &n, path, line);
 							addToLoc(params, parseMethod(params, path, line, n), get_val(line), loc, path, n);
-							i = 8;
+							i = 9;
 							break;
 						case 5:
 							index = get_val(line);
-							i = 8;
+							i = 9;
 							break;
 						case 6:
 							allowed = parseMethod(get_val(line), path, n);
-							i = 8;
+							i = 9;
 							break;
 						case 7:
 							extension.insert(parseExtension(fd, &n, path, line, get_val(line)));
-							i = 8;
+							i = 9;
+							break;
+						case 8:
+							if (get_val(line) == "on")
+								auto_index = 1;
+							else if (get_val(line) == "off")
+								auto_index = 0;
+							else
+							{
+								cout << "\e[91m[\e[1;39m" << get_val(line) << "\e[91m] is an unexcepted value for auto_index (on/off) in \e[1;91m" << path << ":" << n << "\e[0m" << endl;
+								exit(1);
+							}
+							i = 9;
 							break;
 						default:
 							break;
@@ -721,15 +753,23 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 	if (!loc->options.params.count("index"))
 		loc->options.params.insert(make_pair("index", index));
 
+	if (auto_index == -1)
+		auto_index = 0;
+
 	cout << "Server: \e[97;1m" << name << endl;
 	cout << "\e[0m\e[91mroot /\e[0m" << endl;
 		printLoc(loc, 0);
 	cout << endl << endl;
 
 	*numb = n;
-	_t_preServ preServ = {_pre_Serv.size(), port, name, error_pages,loc, extension};
-
-	_pre_Serv.push_back(preServ);
+	if (!ports.size())
+		ports.push_back(DEFAULT_PORT);
+	int id = _pre_Serv.size();
+	for (vector<int>::iterator it = ports.begin(); it != ports.end(); it ++)
+	{
+		_t_preServ preServ = {id, *it, name, error_pages,loc, extension, auto_index};
+		_pre_Serv.push_back(preServ);
+	}
 }
 
 // PARSIN =================================================================================================
