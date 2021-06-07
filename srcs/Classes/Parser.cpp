@@ -764,6 +764,7 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 	*numb = n;
 	if (!ports.size())
 		ports.push_back(DEFAULT_PORT);
+	
 	int id = _pre_Serv.size();
 	for (vector<int>::iterator it = ports.begin(); it != ports.end(); it ++)
 	{

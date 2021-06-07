@@ -4,6 +4,7 @@
 #include "Worker.hpp"
 #include "Headers.hpp"
 #include "Client.hpp"
+#include "CGI.hpp"
 
 using namespace std;
 
@@ -14,6 +15,7 @@ typedef struct s_file
 } t_file;
 
 class Worker;
+class CGI;
 class Server
 {
 public:
@@ -56,7 +58,9 @@ public:
 	int getSocket() { return _socket; };
 	int getId() { return _id; };
 	int getMaxSD() { return _max_sd; }
+	int getPort() { return _port; }
 	int getDescReady() { return _desc_ready; }
+	string getName() { return _name; }
 
 
 	sockaddr_in getServAddr() { return _serv_addr; };
@@ -92,6 +96,8 @@ public:
 	string readPerChunks(Client &, string, map<string, string>);
 
 	t_file getFile(string);
+
+	map<string, map<string, vector<string> > > getExtensions() { return _extensions; }
 
 	// Clients part
 	list<Client> &getClients() { return _clients; }

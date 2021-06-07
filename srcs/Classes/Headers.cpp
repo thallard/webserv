@@ -128,6 +128,7 @@ string Headers::return_response_header(int status, Headers header, size_t size_c
 	else if (size_content > 0)
 		response += "Content-Length: " + std::to_string(size_content) + "\r\n";
 	response += "Content-Language: fr-FR\r\n";
+	response += "Cookie: user-color = #eb4034\r\n";
 	if (status != STATUS_HEAD)
 		response += "\r\n";
 	// cout << response;

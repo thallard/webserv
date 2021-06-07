@@ -29,7 +29,6 @@ public:
 	void setPath(string path) { _path = path; }
 
 	bool exists(int socket);
-	bool readContent();
 };
 
 

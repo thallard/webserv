@@ -25,6 +25,15 @@
 #include <pthread.h>
 #include <errno.h>
 #include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
 using namespace std;
 
 

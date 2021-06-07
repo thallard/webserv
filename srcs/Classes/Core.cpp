@@ -13,13 +13,12 @@ Core::Core(string path) : _parse(path)
 
 	map<string, string>mimes;
   	while (getline(file, str)) {
-	while ((pos = str.find(" ")) != string::npos)
-	{
-		key = str.substr(0, pos);
-		str.erase(0, pos + 1);
-	}
-	mimes.insert(make_pair(key, str));
-    cout << key << "-> " << str << "\n";
+		while ((pos = str.find(" ")) != string::npos)
+		{
+			key = str.substr(0, pos);
+			str.erase(0, pos + 1);
+		}
+		mimes.insert(make_pair(key, str));
   }
 	for (size_t j = 0; j < _parse.getPreServ().size(); j++)
 		_servers.push_back(new Server(_parse.getPreServ()[j], logger, mimes));

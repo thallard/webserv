@@ -63,14 +63,21 @@ void *main_loop(void *arg)
 						int nbytes_read = 0;
 						string buff;
 						char buffer[65535];
-						
+						int receive = 0;
 						do
 						{
 							bzero(buffer, 65535);
 							int len_before_recv = sizeof(buffer);
 							usleep(50);
 							nbytes_read += recv(fd, buffer, 60000 - nbytes_read, 0);
-							// cout << buffer << endl;
+							// cout <<  "[" << (int)buffer[0] << "]" << endl;
+							if (!buffer[0] && receive >= 1000)
+							{
+								connection_closed = true;
+								break ;
+							}
+							else
+								++receive;
 							// dprintf(1, "debug de la nbytes read = %d\n", nbytes_read);
 							buff += buffer;
 							if (60000 - nbytes_read <= 0)

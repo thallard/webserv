@@ -138,7 +138,7 @@ void Server::run(map<int, Worker *> &workers)
 			workers.find(index)->second->setIt(0);
 			workers.find(index)->second->setStatus(false);
 
-			workers.find(index)->second->setSocket(12);
+			workers.find(index)->second->setSocket(_max_sd);
 			while (!workers.find(index)->second->getStatus())
 				;
 			workers.find(index)->second->setIt(0);
@@ -512,14 +512,16 @@ string Server::POST(map<string, string> header, Client &client)
 	if (_extensions.count(extension) && _extensions.find(extension)->second.count("allow_methods"))
 	{
 	}
-
+	client.setPath(loc);
 	cout << "La location : " << loc << endl;
 	// size_t pos;
 	//if ((pos = loc.rfind(".bla", loc.size() - 4)) != loc.npos)
 	if (_extensions.count(extension) && _extensions.find(extension)->second.count("cgi_path"))
 	{
-
+		CGI *cgi = new CGI(*this, "POST", client);
+		(void)cgi;
 		cout << "j'ai un .bla a la fin batard" << endl;
+		// CGI cgi();
 		char *env[15];
 		env[0] = (char *)"REMOTE_HOST=127.0.0.1";
 		env[1] = (char *)"SERVER_NAME=webserv";
@@ -530,7 +532,7 @@ string Server::POST(map<string, string> header, Client &client)
 		env[6] = (char *)"PATH_INFO=/Users/thallard/Documents/42/webserv/YoupiBanane/youpi.bla";
 		// env[7] = (char *)"SCRIPT_NAME=/Users/thallard/Documents/42/webserv";
 		env[7] = (char *)NULL;
-		char *cgi[3] = {(char *)_extensions.find(extension)->second.find("cgi_path")->second.at(0).c_str(), NULL};
+		char *cgii[3] = {(char *)_extensions.find(extension)->second.find("cgi_path")->second.at(0).c_str(), NULL};
 		pid_t forke;
 		int ret = 0;
 		// int fd = 0;
@@ -556,7 +558,7 @@ string Server::POST(map<string, string> header, Client &client)
 			dup2(pipe2[1], STDOUT_FILENO);
 			close(pipe2[0]);
 			close(pipe2[1]);
-			ret = execve(cgi[0], cgi, env);
+			ret = execve(cgii[0], cgii, env);
 			int errnum = errno;
 			fprintf(stderr, "Failed to execute '%s' (%d: %s)\n", "tqt ", errnum, strerror(errnum));
 			exit(EXIT_FAILURE);
@@ -564,7 +566,11 @@ string Server::POST(map<string, string> header, Client &client)
 		else
 		{
 			close(pipe1[0]);
-			int oui = write(pipe1[1], "Bonjour\n", 9);
+			// write(1, client.getContent().c_str(), client.getContent().size());
+			int oui = write(pipe1[1], client.getContent().c_str(), client.getContent().size());
+			// close(pipe1[1]);
+			// client.setSocket(pipe1[1]);
+			// readPerChunks(client, "POST", header);
 			if (oui <= 0)
 			{
 				perror("Failed to write from pipe");
@@ -790,7 +796,6 @@ bool Server::check_methods(t_loc *root, string meth, string loc)
 {
 	string extension;
 	vector<string> allowed;
-	//loc = trim_whitespace(loc);
 	for (string::reverse_iterator it = loc.rbegin(); it != loc.rend(); it++)
 	{
 		extension.insert(extension.begin(), *it);
@@ -816,34 +821,34 @@ bool Server::check_methods(t_loc *root, string meth, string loc)
 }
 
 // Check if a client already exists with this socket
-int Server::exists(int socket, list<Client> &clients)
-{
-	bool found = false;
-	list<Client>::iterator begin = clients.begin();
-	while (begin != clients.end())
-	{
-		if (begin->getSocket() == socket)
-		{
-			if (!(begin->readContent()))
-				return (false);
-			found = true;
-		}
-		std::cout << "boucle inf ici ma caille!2\n";
-		begin++;
-	}
-	std::cout << "boucle inf ici ma caille!6" << found << "\n";
-	if (!found)
-	{
-		Client client(clients.size() + 1, socket);
-		std::cout << "avant read ta mere la cheinne\n";
-		if (!(client.readContent()))
-			return (false);
-		std::cout << "apres read ta mere la cheinne\n";
-		clients.push_back(client);
-	}
-	std::cout << "boucle inf ici ma caille!7\n";
-	return true;
-}
+// int Server::exists(int socket, list<Client> &clients)
+// {
+// 	bool found = false;
+// 	list<Client>::iterator begin = clients.begin();
+// 	while (begin != clients.end())
+// 	{
+// 		if (begin->getSocket() == socket)
+// 		{
+// 			if (!(begin->readContent()))
+// 				return (false);
+// 			found = true;
+// 		}
+// 		std::cout << "boucle inf ici ma caille!2\n";
+// 		begin++;
+// 	}
+// 	std::cout << "boucle inf ici ma caille!6" << found << "\n";
+// 	if (!found)
+// 	{
+// 		Client client(clients.size() + 1, socket);
+// 		std::cout << "avant read ta mere la cheinne\n";
+// 		if (!(client.readContent()))
+// 			return (false);
+// 		std::cout << "apres read ta mere la cheinne\n";
+// 		clients.push_back(client);
+// 	}
+// 	std::cout << "boucle inf ici ma caille!7\n";
+// 	return true;
+// }
 
 int Server::findAvailableWorker(map<int, Worker *> &workers)
 {

@@ -11,7 +11,8 @@ PRE_SRCS	=	main \
 		$(classes)/Core \
 		$(classes)/Worker \
 		$(classes)/Client \
-		$(classes)/Parser
+		$(classes)/Parser \
+		$(classes)/CGI
 
 SRCS = $(addsuffix .cpp, $(addprefix $(SRC_DIR), $(PRE_SRCS)))
 OBJS = $(addsuffix .o, $(addprefix $(OBJ_DIR), $(PRE_SRCS)))
