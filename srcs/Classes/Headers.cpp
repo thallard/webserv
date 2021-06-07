@@ -133,3 +133,69 @@ string Headers::return_response_header(int status, Headers header, size_t size_c
 	// cout << response;
 	return (response);
 }
+
+string Headers::return_response_header(int status, Headers header, size_t size_content, string type)
+{
+	(void)status;
+	(void)header;
+	string response;
+
+	// Parse status code
+	switch (status)
+	{
+	case STATUS_OK:
+		response = "HTTP/1.1 200 OK\r\n";
+		break;
+	case STATUS_NO_CONTENT:
+		response = "HTTP/1.1 204 No Content\r\n";
+		break;
+	case STATUS_NOT_FOUND:
+		response = "HTTP/1.1 404 Not Found\r\n";
+		break;
+	case STATUS_METHOD_NOT_ALLOWED:
+		response = "HTTP/1.1 405 Method Not Allowed\r\n";
+		break;
+	case STATUS_TEAPOT:
+		response = "HTTP/1.1 418 I'm a teapot\r\n";
+		break;
+	case STATUS_HEAD:
+		response = "HTTP/1.1 200 OK\r\n";
+		break;
+	case STATUS_URI_TOO_LONG:
+		response = "HTTP/1.1 414 URI Too Long\r\n";
+		break;
+	case STATUS_BAD_REQUEST:
+		response = "HTTP/1.1 400 Bad Request\r\n";
+		break;
+	default:
+		break;
+	}
+
+	// Parse date
+	struct timeval tv;
+	time_t t;
+	struct tm *info;
+	char buffer[64];
+
+	gettimeofday(&tv, NULL);
+	t = tv.tv_sec;
+
+	info = localtime(&t);
+	strftime(buffer, sizeof buffer, " ", info);
+	response += "Date:";
+	response += buffer;
+	strftime(buffer, sizeof buffer, "%p %I:%M GMT +2.\r\n", info);
+	response += asctime(info);
+	response += "Server: webserv\r\n";
+	// If method is GET/HEAD, its gonna fill this line
+	if (status == STATUS_NO_CONTENT)
+		response += "Content-Length: 0\r\n";
+	else if (size_content > 0)
+		response += "Content-Length: " + std::to_string(size_content) + "\r\n";
+	response += "Content-Language: fr-FR\r\n";
+	response += "Content-Type: " + type + "\r\n";
+	if (status != STATUS_HEAD)
+		response += "\r\n";
+	// cout << response;
+	return (response);
+}

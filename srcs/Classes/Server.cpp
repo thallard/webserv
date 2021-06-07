@@ -34,7 +34,7 @@ Server::Server(int port)
 	listen(_socket, 4096);
 }
 
-Server::Server(_t_preServ pre, pthread_mutex_t *logger)
+Server::Server(_t_preServ pre, pthread_mutex_t *logger, map<string, string>mimes)
 {
 	// Init thread
 	_id = pre.id;
@@ -73,6 +73,7 @@ Server::Server(_t_preServ pre, pthread_mutex_t *logger)
 	_root = pre._root;
 	_extensions = pre.ext;
 	_auto_index = pre.auto_index;
+	_mimes = mimes;
 }
 
 Server::~Server()
@@ -98,7 +99,7 @@ Server &Server::operator=(Server const &ref)
 	_auto_index = ref._auto_index;
 	_port = ref._port;
 	_extensions = ref._extensions;
-
+	_mimes = ref._mimes;
 	return *this;
 }
 
@@ -266,64 +267,6 @@ void Server::run(map<int, Worker *> &workers)
 			log("\e[1;96m[IDLING]\e[0m");
 	}
 }
-
-// // signal(SIGINT, this::signal_handle);
-// struct timeval tv = {1, 0};
-
-// _count_requests = 0;
-// int count = workers.size();
-// _workers = workers;
-// int idle = 0;
-
-// socklen_t clilen = sizeof(_cli_addr);
-
-// while (1)
-// {
-// 	fd_set write_fds2 = _write_fds;
-// 	fd_set read_fds2 = _read_fds;
-// 	// for (int l = 0; l < count; l++)
-// 	// 	workers.find(l)->second->setSocket(0);
-// 	if (select(_socket + 1, &read_fds2, &write_fds2, NULL, &tv) > 0)
-// 	{
-// 		// Search for an available worker
-// 		int i = 0;
-// 		while (1)
-// 		{
-// 			i = 0;
-// 			while (!workers.find(i)->second->getStatus() && i < count - 1)
-// 				i++;
-// 			if (workers.find(i)->second->getStatus())
-// 				break;
-// 			std::cout << "jboucle inf ici mais ca a pas de sens c si la\n";
-// 		}
-// 		if (!FD_ISSET(_socket, &_write_fds) || !FD_ISSET(_socket, &_read_fds))
-// 			error("ERROR non-set socket");
-// 		int newsockfd = accept(_socket, (struct sockaddr *)&_cli_addr, &clilen);
-// 		if (newsockfd < 0)
-// 			error("ERROR on accept");
-// 		std::cout << "boucle inf ici ma caille4!\n";
-// 		// Check for a existing client or a new one
-// 		if (!exists(newsockfd, clients))
-// 			error("Error during reading client socket part");
-// 		std::cout << "boucle inf ici ma caille5!\n";
-// 		workers.find(i)->second->setServer(this);
-// 		workers.find(i)->second->setStatus(false);
-// 		workers.find(i)->second->setSocket(newsockfd);
-// 		std::cout << "boucle inf ici ma caille523!\n";
-// 		// handle_request(newsockfd);
-// 		while (!workers.find(i)->second->getStatus())
-// 			;
-// 		std::cout << "boucle inf ici ma caille512!\n";
-// 		close(newsockfd);
-// 	}
-// 	else if (idle == 30)
-// 	{
-// 		log("\e[1;96m[IDLING]\e[0m");
-// 		idle = 0;
-// 	}
-// 	else
-// 		idle++;
-// }
 
 t_loc *Server::findInLoc(string s, t_loc *root)
 {
@@ -764,13 +707,26 @@ string Server::GET(map<string, string> header, Client &client)
 	Headers tmp;
 	string resp;
 
+	string extension;
+	string loc = header.find("Location")->second;
+	cout << "test" << endl;
+	for (string::reverse_iterator it = loc.rbegin(); it != loc.rend(); it++)
+	{
+		if (*it == '.')
+			break;
+		extension.insert(extension.begin(), *it);
+	}
+cout << extension << endl;
 	if (file.size == -1)
 		resp = SEND_ERROR(STATUS_NOT_FOUND, "Not Found");
 	else if (header.count("coffee"))
 		resp = SEND_ERROR(STATUS_TEAPOT, "I'm a teapot");
 	else
 	{
-		resp = tmp.return_response_header(200, tmp, 0);
+		if (_mimes.count(extension))
+			resp = tmp.return_response_header(200, tmp, 0, _mimes.find(extension)->second);
+		else
+			resp = tmp.return_response_header(200, tmp, 0);
 		resp += file.content;
 	}
 	std::cout << "je veux sortir sac a merde\n";

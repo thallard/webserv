@@ -35,6 +35,7 @@ private:
 	map<string, map<string, vector<string> > > _extensions;
 
 	map<int, string> _error_pages;
+	map<string, string>_mimes;
 	map<int, Worker *> _workers;
 	list<Client> _clients;
 
@@ -49,7 +50,7 @@ private:
 
 public:
 	Server(int);
-	Server(_t_preServ, pthread_mutex_t *);
+	Server(_t_preServ, pthread_mutex_t *, map<string, string>);
 	Server &operator=(Server const &ref);
 	~Server();
 	int getSocket() { return _socket; };
