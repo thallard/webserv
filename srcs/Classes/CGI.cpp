@@ -1,6 +1,6 @@
 #include "CGI.hpp"
 
-CGI::CGI(Server &server, string method, Client &client) 
+CGI::CGI(Server &server, string method, Client &client)
 {
     (void)server;
     vector<string> env;
@@ -13,23 +13,22 @@ CGI::CGI(Server &server, string method, Client &client)
     env.push_back("REQUEST_METHOD=" + method);
     env.push_back("PATH_INFO=" + string(getcwd(NULL, 2048)) + client.getPath());
 
-
     size_t i = 0;
-    char **yes = new char*[env.size() + 1];
+    char **yes = new char *[env.size() + 1];
     cout << "taille d'ici :  " << env.size() << endl;
-    for(;i != env.size(); i++)
+    for (; i != env.size(); i++)
     {
         cout << "i: " << i << endl;
         yes[i] = (char *)env.at(i).c_str();
     }
     yes[i] = NULL;
 
-    i = 0;
-    while (yes[i])
-    {
-        cout << i <<" : " << yes[i] << endl;
-        i++;
-    }
+    // i = 0;
+    // while (yes[i])
+    // {
+    //     cout << i <<" : " << yes[i] << endl;
+    //     i++;
+    // }
     _env = yes;
     prepareFileDescribtors(server, client);
 }
@@ -44,12 +43,13 @@ void CGI::prepareFileDescribtors(Server &server, Client &client)
     pid_t pid;
 
     string extension;
-	for (string::reverse_iterator it = client.getPath().rbegin(); it != client.getPath().rend(); it++)
-	{
-		extension.insert(extension.begin(), *it);
-		if (*it == '.')
-			break;
-	}
+    string::reverse_iterator it = client.getPath().rbegin();
+    for (; it != client.getPath().rend(); it++)
+    {
+        extension.insert(extension.begin(), *it);
+        if (*it == '.')
+            break;
+    }
 
     char *info_cgi[3] = {(char *)server.getExtensions().find(extension)->second.find("cgi_path")->second.at(0).c_str(), NULL};
 
@@ -66,7 +66,7 @@ void CGI::prepareFileDescribtors(Server &server, Client &client)
     }
     if (!pid)
     {
-        dup2(pipe_read[0], client.getSocket());
+        dup2(pipe_read[0], STDIN_FILENO);
         close(pipe_read[0]);
         close(pipe_read[1]);
         dup2(pipe_write[1], STDOUT_FILENO);
@@ -77,25 +77,25 @@ void CGI::prepareFileDescribtors(Server &server, Client &client)
     else
     {
         close(pipe_read[0]);
-       int oui = write(pipe_read[1], client.getContent().c_str(), client.getContent().size());
-      
-       if (oui <= 0)
-			{
-				perror("Failed to write from pipe");
-				exit(EXIT_FAILURE);
-			}
-			close(pipe_read[1]);
-			char buf[1550];
+        int oui = write(pipe_read[1], client.getContent().c_str(), client.getContent().size());
 
-			int nb = read(pipe_write[0], &buf, 1000);
-			if (nb <= 0)
-			{
-				perror("Failed to read from pipe");
-				exit(EXIT_FAILURE);
-			}
-			dprintf(1, "le buf 100 : [%s]\n", buf);
-			close(pipe_write[0]);
-			// close(fd);
-			 waitpid(pid, NULL, 1);
+        if (oui <= 0)
+        {
+            perror("Failed to write from pipe");
+            exit(EXIT_FAILURE);
+        }
+        close(pipe_read[1]);
+        char buf[1550];
+
+        int nb = read(pipe_write[0], &buf, 1000);
+        if (nb <= 0)
+        {
+            perror("Failed to read from pipe");
+            exit(EXIT_FAILURE);
+        }
+        dprintf(1, "le buf 100 : [%s]\n", buf);
+        close(pipe_write[0]);
+        // close(fd);
+        waitpid(pid, NULL, 1);
     }
 }

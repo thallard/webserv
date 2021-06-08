@@ -520,79 +520,80 @@ string Server::POST(map<string, string> header, Client &client)
 	{
 		CGI *cgi = new CGI(*this, "POST", client);
 		(void)cgi;
-		cout << "j'ai un .bla a la fin batard" << endl;
-		// CGI cgi();
-		char *env[15];
-		env[0] = (char *)"REMOTE_HOST=127.0.0.1";
-		env[1] = (char *)"SERVER_NAME=webserv";
-		env[2] = (char *)"SERVER_PORT=8080";
-		env[3] = (char *)"SERVER_PROTOCOL=HTTP/1.1";
-		env[4] = (char *)"SERVER_SOFTWARE=HTTP/1.1";
-		env[5] = (char *)"REQUEST_METHOD=POST";
-		env[6] = (char *)"PATH_INFO=/Users/thallard/Documents/42/webserv/YoupiBanane/youpi.bla";
-		// env[7] = (char *)"SCRIPT_NAME=/Users/thallard/Documents/42/webserv";
-		env[7] = (char *)NULL;
-		char *cgii[3] = {(char *)_extensions.find(extension)->second.find("cgi_path")->second.at(0).c_str(), NULL};
-		pid_t forke;
-		int ret = 0;
-		// int fd = 0;
-		int pipe1[2];
-		int pipe2[2];
-		if (pipe(pipe1) == -1 || pipe(pipe2) == -1)
-		{
-			perror("Pipe failed");
-			exit(EXIT_FAILURE);
-		}
-		forke = fork();
-		if (forke < 0)
-		{
-			perror("Fork failed");
-			exit(EXIT_FAILURE);
-		}
-		if (forke == 0)
-		{
-			// fd = open("default/file.txt", 0777);
-			dup2(pipe1[0], STDIN_FILENO);
-			close(pipe1[0]);
-			close(pipe1[1]);
-			dup2(pipe2[1], STDOUT_FILENO);
-			close(pipe2[0]);
-			close(pipe2[1]);
-			ret = execve(cgii[0], cgii, env);
-			int errnum = errno;
-			fprintf(stderr, "Failed to execute '%s' (%d: %s)\n", "tqt ", errnum, strerror(errnum));
-			exit(EXIT_FAILURE);
-		}
-		else
-		{
-			close(pipe1[0]);
-			// write(1, client.getContent().c_str(), client.getContent().size());
-			int oui = write(pipe1[1], client.getContent().c_str(), client.getContent().size());
-			// close(pipe1[1]);
-			// client.setSocket(pipe1[1]);
-			// readPerChunks(client, "POST", header);
-			if (oui <= 0)
-			{
-				perror("Failed to write from pipe");
-				exit(EXIT_FAILURE);
-			}
-			close(pipe1[1]);
-			char buf[1550];
+		// (void)cgi;
+		// cout << "j'ai un .bla a la fin batard" << endl;
+		// // CGI cgi();
+		// char *env[15];
+		// env[0] = (char *)"REMOTE_HOST=127.0.0.1";
+		// env[1] = (char *)"SERVER_NAME=webserv";
+		// env[2] = (char *)"SERVER_PORT=8080";
+		// env[3] = (char *)"SERVER_PROTOCOL=HTTP/1.1";
+		// env[4] = (char *)"SERVER_SOFTWARE=HTTP/1.1";
+		// env[5] = (char *)"REQUEST_METHOD=POST";
+		// env[6] = (char *)"PATH_INFO=/Users/thallard/Documents/42/webserv/YoupiBanane/youpi.bla";
+		// // env[7] = (char *)"SCRIPT_NAME=/Users/thallard/Documents/42/webserv";
+		// env[7] = (char *)NULL;
+		// char *cgii[3] = {(char *)_extensions.find(extension)->second.find("cgi_path")->second.at(0).c_str(), NULL};
+		// pid_t forke;
+		// int ret = 0;
+		// // int fd = 0;
+		// int pipe1[2];
+		// int pipe2[2];
+		// if (pipe(pipe1) == -1 || pipe(pipe2) == -1)
+		// {
+		// 	perror("Pipe failed");
+		// 	exit(EXIT_FAILURE);
+		// }
+		// forke = fork();
+		// if (forke < 0)
+		// {
+		// 	perror("Fork failed");
+		// 	exit(EXIT_FAILURE);
+		// }
+		// if (forke == 0)
+		// {
+		// 	// fd = open("default/file.txt", 0777);
+		// 	dup2(pipe1[0], STDIN_FILENO);
+		// 	close(pipe1[0]);
+		// 	close(pipe1[1]);
+		// 	dup2(pipe2[1], STDOUT_FILENO);
+		// 	close(pipe2[0]);
+		// 	close(pipe2[1]);
+		// 	ret = execve(cgii[0], cgii, env);
+		// 	int errnum = errno;
+		// 	fprintf(stderr, "Failed to execute '%s' (%d: %s)\n", "tqt ", errnum, strerror(errnum));
+		// 	exit(EXIT_FAILURE);
+		// }
+		// else
+		// {
+		// 	close(pipe1[0]);
+		// 	// write(1, client.getContent().c_str(), client.getContent().size());
+		// 	int oui = write(pipe1[1], client.getContent().c_str(), client.getContent().size());
+		// 	// close(pipe1[1]);
+		// 	// client.setSocket(pipe1[1]);
+		// 	// readPerChunks(client, "POST", header);
+		// 	if (oui <= 0)
+		// 	{
+		// 		perror("Failed to write from pipe");
+		// 		exit(EXIT_FAILURE);
+		// 	}
+		// 	close(pipe1[1]);
+		// 	char buf[1550];
 
-			int nb = read(pipe2[0], &buf, 1000);
-			if (nb <= 0)
-			{
-				perror("Failed to read from pipe");
-				exit(EXIT_FAILURE);
-			}
-			dprintf(1, "le buf : [%s]\n", buf);
-			close(pipe2[0]);
-			// close(fd);
-			 waitpid(forke, NULL, 1);
-		}
-		cout << errno << endl;
-		cout << strerror(errno) << endl;
-		cout << ret << endl;
+		// 	int nb = read(pipe2[0], &buf, 1000);
+		// 	if (nb <= 0)
+		// 	{
+		// 		perror("Failed to read from pipe");
+		// 		exit(EXIT_FAILURE);
+		// 	}
+		// 	dprintf(1, "le buf : [%s]\n", buf);
+		// 	close(pipe2[0]);
+		// 	// close(fd);
+		// 	 waitpid(forke, NULL, 1);
+		// }
+		// cout << errno << endl;
+		// cout << strerror(errno) << endl;
+		// cout << ret << endl;
 		// exit(1);
 	}
 

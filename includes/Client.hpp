@@ -21,7 +21,7 @@ public:
 	int getSocket() { return _socket; }
 	int getId() { return _id; }
 	string getContent() { return _content; }
-	string getPath() { return _path; }
+	string &getPath() { return _path; }
 	
 	void setSocket(int socket) { _socket = socket; }
 	void setId(int id) { _id = id; }
