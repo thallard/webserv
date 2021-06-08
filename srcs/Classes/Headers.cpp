@@ -37,7 +37,17 @@ void Headers::operator+=(string send)
 			string type(line, 0, line.find('/') - 1);
 			head.insert(make_pair("Request-Type", type));
 			string loc(line, type.size() + 1, line.find("HTTP") - 5);
-			head.insert(make_pair("Location", trim_whitespace(loc)));
+			size_t pos;
+			if ((pos = loc.find("?")) != string::npos)
+			{
+
+				string token = loc.substr(0, pos);
+				head.insert(make_pair("Location", trim_whitespace(token)));
+				loc.erase(0, pos + 1);
+				head.insert(make_pair("Variables", trim_whitespace(loc)));
+			}
+			else
+				head.insert(make_pair("Location", trim_whitespace(loc)));
 			string ver(line, line.find_last_of('/') + 1);
 			head.insert(make_pair("HTTP-Ver", ver));
 		}

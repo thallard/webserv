@@ -1,18 +1,26 @@
 #include "CGI.hpp"
 
-CGI::CGI(Server &server, string method, Client &client)
+CGI::CGI(Server &server, map<string, string> header, Client &client)
 {
     (void)server;
+    (void)client;
     vector<string> env;
     // Create environment for the CGI
-    env.push_back("REMOTE_HOST=127.0.0.1");
-    env.push_back("SERVER_NAME=" + server.getName());
-    env.push_back("SERVER_PORT=" + to_string(server.getPort()));
+    // env.push_back("REMOTE_HOST=127.0.0.1");
+    // env.push_back("SERVER_NAME=" + server.getName());
+    // env.push_back("SERVER_PORT=" + to_string(server.getPort()));
+    // env.push_back("SERVER_PROTOCOL=HTTP/1.1");
+    // env.push_back("SERVER_SOFTWARE=HTTP/1.1");
+    // env.push_back("REQUEST_METHOD=" + method);
+    env.push_back("PATH_INFO=" + string(getcwd(NULL, 2048)));
+    env.push_back("SCRIPT_FILENAME=" + header.find("Location")->second);
     env.push_back("SERVER_PROTOCOL=HTTP/1.1");
-    env.push_back("SERVER_SOFTWARE=HTTP/1.1");
-    env.push_back("REQUEST_METHOD=" + method);
-    env.push_back("PATH_INFO=" + string(getcwd(NULL, 2048)) + client.getPath());
+    env.push_back("REQUEST_METHOD=" + header.find("Request-Type")->second);
+    env.push_back("REDIRECT_STATUS=200");
+    if (header.count("Variables"))
+        env.push_back("QUERY_STRING=" + header.find("Variables")->second);
 
+    
     size_t i = 0;
     char **yes = new char *[env.size() + 1];
     cout << "taille d'ici :  " << env.size() << endl;
@@ -23,6 +31,7 @@ CGI::CGI(Server &server, string method, Client &client)
     }
     yes[i] = NULL;
 
+
     // i = 0;
     // while (yes[i])
     // {
@@ -30,7 +39,7 @@ CGI::CGI(Server &server, string method, Client &client)
     //     i++;
     // }
     _env = yes;
-    prepareFileDescribtors(server, client);
+    // prepareFileDescribtors(server, client);
 }
 
 CGI::~CGI()
@@ -93,7 +102,7 @@ void CGI::prepareFileDescribtors(Server &server, Client &client)
             perror("Failed to read from pipe");
             exit(EXIT_FAILURE);
         }
-        dprintf(1, "le buf 100 : [%s]\n", buf);
+        dprintf(1, "\e[31mle buf 100 : [%s]\n\e[0m", buf);
         close(pipe_write[0]);
         // close(fd);
         waitpid(pid, NULL, 1);

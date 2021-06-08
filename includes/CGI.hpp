@@ -14,7 +14,7 @@ private:
     // int         _fd_write;
     // int         _fd_read;
 public:
-    CGI(Server &server, string method, Client &client);
+    CGI(Server &server, map<string, string> header, Client &client);
     ~CGI();
 
     void prepareFileDescribtors(Server &server, Client &client);

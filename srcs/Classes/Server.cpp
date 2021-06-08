@@ -518,7 +518,7 @@ string Server::POST(map<string, string> header, Client &client)
 	//if ((pos = loc.rfind(".bla", loc.size() - 4)) != loc.npos)
 	if (_extensions.count(extension) && _extensions.find(extension)->second.count("cgi_path"))
 	{
-		CGI *cgi = new CGI(*this, "POST", client);
+		CGI *cgi = new CGI(*this, header, client);
 		(void)cgi;
 		// (void)cgi;
 		// cout << "j'ai un .bla a la fin batard" << endl;
