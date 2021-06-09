@@ -14,10 +14,10 @@ private:
     // int         _fd_write;
     // int         _fd_read;
 public:
-    CGI(Server &server, map<string, string> header, Client &client);
+    CGI();
     ~CGI();
 
-    void prepareFileDescribtors(Server &server, Client &client);
+    string getContentFromCGI(map<string, string> header, char *path, string location);
 };
 
 

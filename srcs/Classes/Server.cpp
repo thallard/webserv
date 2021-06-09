@@ -34,7 +34,7 @@ Server::Server(int port)
 	listen(_socket, 4096);
 }
 
-Server::Server(_t_preServ pre, pthread_mutex_t *logger, map<string, string>mimes)
+Server::Server(_t_preServ pre, pthread_mutex_t *logger, map<string, string> mimes)
 {
 	// Init thread
 	_id = pre.id;
@@ -106,162 +106,29 @@ Server &Server::operator=(Server const &ref)
 // Hearth of the request for the server
 void Server::run(map<int, Worker *> &workers)
 {
-	(void)workers;
 	struct timeval tv = {100, 0};
 
-	// std::cout << "Server: " << _id << endl;
-	// getFile("/test/");
 	fd_set temp_fd;
 	log("\e[32;1m[Started !]");
 	while (1)
 	{
-
 		int retval = 0, index = 0;
-
 		memcpy(&temp_fd, &_clients_fd, sizeof(_clients_fd));
-		//temp_fd = _clients_fd;
 		_desc_ready = 0;
 		if ((retval = select(_max_sd + 1, &temp_fd, NULL, NULL, &tv)) >= 1)
 		{
 			if (retval == -1)
 				error("select crash");
 			_desc_ready = 1;
-			// _max_sd = _socket;
-			// bool connection_closed = false;
-			// bool server_end = false;
 			setTempFD(temp_fd);
-			// setDescReady(1);
-			// setMaxSD(_max_sd);
-			// dprintf(1, "socket %d\n", _max_sd);
 			index = findAvailableWorker(workers);
 			workers.find(index)->second->setServer(this);
 			workers.find(index)->second->setIt(0);
 			workers.find(index)->second->setStatus(false);
-
 			workers.find(index)->second->setSocket(_max_sd);
 			while (!workers.find(index)->second->getStatus())
 				;
 			workers.find(index)->second->setIt(0);
-			// socklen_t clilen = sizeof(getCliAddr());
-
-			// pthread_mutex_lock(getLogger());
-			// // std::cout << "\e[1;96m[Worker " << to_string(w->getId()) << "]\e[0m";
-			// pthread_mutex_unlock(getLogger());
-
-			// for (int fd = 1; fd <= _max_sd && _desc_ready > 0; fd++)
-			// {
-			// 	// std::cout << "je boucle ici " << fd << " == " << FD_ISSET(fd, &temp_fd) << "\n";
-			// 	if (FD_ISSET(fd, &temp_fd))
-			// 	{
-			// 		_desc_ready -= 1;
-			// 		if (fd == _socket)
-			// 		{
-
-			// 			int new_socket = 0;
-			// 			do
-			// 			{
-			// 				new_socket = accept(_socket, NULL, NULL);
-			// 				if (new_socket < 0)
-			// 				{
-			// 					if (errno != EWOULDBLOCK)
-			// 					{
-			// 						perror("Accept failed");
-			// 						server_end = true;
-			// 					}
-			// 					// std::cout << "oh la con de am tamere\n";
-			// 					break;
-			// 				}
-			// 				log("\e[1;94m[New incoming connection socket(" + to_string(fd) + ")]\e[0;0m");
-			// 				FD_SET(new_socket, &_clients_fd);
-			// 				if (new_socket > _max_sd)
-			// 					_max_sd = new_socket;
-
-			// 				// std::cout << " gros fil de pute : " << FD_ISSET(130, &_clients_fd) << " et lature " << new_socket <<  " et le fd " << fd << endl;
-			// 			} while (new_socket != -1);
-			// 			// std::cout << "oh la con de am tamere\n";
-			// 		}
-			// 		else
-			// 		{
-			// 			fcntl(fd, F_SETFL, O_NONBLOCK);
-			// 			Client client(getClients().size(), fd);
-			// 			connection_closed = false;
-			// 			int nbytes_read;
-			// 			string buff;
-			// 			char buffer[4096];
-			// 			bzero(buffer, 4096);
-			// 			do
-			// 			{
-			// 				int len_before_recv = sizeof(buffer);
-			// 				usleep(50);
-			// 				nbytes_read = recv(fd, buffer, sizeof(buffer), MSG_DONTWAIT);
-			// 				log("\e[1;93m[recv() read " + to_string(nbytes_read) + " characters]\e[0;0m");
-			// 				std::cout << buffer << endl;
-			// 				buff += buffer;
-
-			// 				bzero(buffer, 4096);
-			// 				client.setContent(client.getContent() + string(buffer));
-			// 				if (nbytes_read < 1 && nbytes_read < len_before_recv)
-			// 				{
-			// 					std::cout << buff << endl;
-			// 					connection_closed = true;
-			// 					// nbytes_read = send(fd, buffer, strlen(buffer), MSG_DONTWAIT);
-			// 					// log("\e[1;93m[send() wrote " + to_string(nbytes_read) + " characters]\e[0;0m");
-
-			// 					// if (nbytes_read < 0)
-			// 					// {
-			// 					// 	perror("error dans le sud\n");
-			// 					// 	server_end = true;
-
-			// 					// 	break;
-			// 					// }
-			// 					std::cout << nbytes_read << endl;
-			// 					// std::cout << (int)buffer[strlen(buffer) + 1] << " " << (int)buffer[strlen(buffer) - 1] << " " << (int)buffer[strlen(buffer) - 2] << " " << (int)buffer[strlen(buffer) -3] << " " <<(int) buffer[strlen(buffer)- 4] << endl;
-			// 					//if (strncmp(buffer + (strlen(buffer) - 3), "\r\n", 2))
-			// 					//	continue ;
-			// 					//std::cout << (int)buffer[strlen(buffer) + 1] << " " << (int)buffer[strlen(buffer) - 1] << " " << (int)buffer[strlen(buffer) - 2] << " " << (int)buffer[strlen(buffer) -3] << " " <<(int) buffer[strlen(buffer)- 4] << endl;
-			// 					client.setContent(buff);
-			// 					handle_request(client);
-
-			// 					break;
-			// 				}
-			// 				if (nbytes_read < 0)
-			// 				{
-			// 					if (errno != EWOULDBLOCK)
-			// 					{
-			// 						perror("recv() failed\n");
-			// 						server_end = true;
-			// 					}
-			// 					break;
-			// 				}
-			// 				// nbytes_read = send(fd, buffer, sizeof(buffer), MSG_DONTWAIT);
-			// 				// if (nbytes_read < 0)
-			// 				// {
-			// 				// 	perror("error dans le sud\n");
-			// 				// 	server_end = true;
-			// 				// 	break;
-			// 				// }
-
-			// 			} while (true);
-			// 			//std::cout << "oui connection clsoed = " << connection_closed << endl;;
-			// 			if (connection_closed)
-			// 			{
-			// 				//Headers test;
-			// 				//test += buff;
-			// 				log("\e[1;31m[Connection closed]\e[0m");
-			// 				//std::cout << "\e[31m JE CLOSE \e[0m" << endl;
-			// 				//	if(!test.last().count("Connection") || test.last().find("Connection")->second.find("keep-alive"))
-			// 				close(fd);
-			// 				FD_CLR(fd, &_clients_fd);
-			// 				if (fd == _max_sd)
-			// 				{
-			// 					while (!FD_ISSET(_max_sd, &_clients_fd))
-			// 						_max_sd -= 1;
-			// 				}
-			// 			}
-			// 		}
-			// 	}
-			// else
-			// 	std::cout << "oh mama jai pas trouve le fd la...\n";
 		}
 		else
 			log("\e[1;96m[IDLING]\e[0m");
@@ -284,7 +151,7 @@ t_find Server::findAllLoc(string path)
 
 	t_loc *tmp = _root;
 
-	t_find founded = {_root, ""};
+	t_find founded = {_root, "", _root->options.params.find("root")->second + "/"};
 
 	while ((pos = path.find("/")) != string::npos)
 	{
@@ -300,13 +167,33 @@ t_find Server::findAllLoc(string path)
 			return founded;
 		founded.path += split + "/";
 		founded.loc = tmp;
+		if (tmp->options.params.count("root"))
+			founded.access += tmp->options.params.find("root")->second;
+		else
+			founded.access += split + "/";
+		cout << "inner: " <<  founded.access<< endl;
 		path.erase(0, pos + 1);
 	}
 	tmp = findInLoc(path, tmp);
 	if (!tmp)
+	{
+		founded.access += path;
+		cout << "found :  " <<founded.access << endl;
 		return founded;
+	}
 	founded.path += path;
-	founded.loc = tmp;
+	founded.loc = + tmp;
+		if (tmp->options.params.count("root"))
+		{
+			cout << "1" << endl;
+			founded.access += tmp->options.params.find("root")->second;
+		}
+		else
+		{
+			cout << "2" << endl;
+			founded.access += path;
+		}
+cout << "found :  " <<founded.access << endl;
 	return founded;
 }
 
@@ -347,31 +234,31 @@ t_file Server::getFile(string path)
 		}
 		else
 		{
-			file.content = "<html> <head><title>Index of " + a_i + "</title></head> <body bgcolor=\"white\"> <h1>Index of "+ a_i +"</h1><hr><pre>\n";
-			
+			file.content = "<html> <head><title>Index of " + a_i + "</title></head> <body bgcolor=\"white\"> <h1>Index of " + a_i + "</h1><hr><pre>\n";
+
 			DIR *dir;
 			DIR *dir_tmp;
 
 			struct dirent *ent;
 			size_t size;
 			size_t size_2;
-			if ((dir_tmp = opendir (path.c_str())) != NULL)
+			if ((dir_tmp = opendir(path.c_str())) != NULL)
 			{
 				size_2 = 0;
-				while ((ent = readdir (dir_tmp)) != NULL)
+				while ((ent = readdir(dir_tmp)) != NULL)
 				{
 					struct stat buf;
 					bzero(&buf, sizeof(buf));
-					stat(string(path+ "/" + string(ent->d_name)).c_str(), &buf);
+					stat(string(path + "/" + string(ent->d_name)).c_str(), &buf);
 					string size_file = to_string(buf.st_size);
 					if (size_2 < size_file.size())
 						size_2 = size_file.size();
 				}
 			}
-			if ((dir = opendir (path.c_str())) != NULL)
+			if ((dir = opendir(path.c_str())) != NULL)
 			{
 				size = file.content.size();
-				while ((ent = readdir (dir)) != NULL)
+				while ((ent = readdir(dir)) != NULL)
 				{
 					size = string(ent->d_name).size();
 					if (ent->d_type == DT_DIR)
@@ -387,18 +274,18 @@ t_file Server::getFile(string path)
 							file.content += " ";
 						struct stat buf;
 						bzero(&buf, sizeof(buf));
-						stat(string(path+ "/" + string(ent->d_name)).c_str(), &buf);
+						stat(string(path + "/" + string(ent->d_name)).c_str(), &buf);
 
-					struct timeval tv;
-					time_t t;
-					struct tm *info;
-					char buffer[64];
+						struct timeval tv;
+						time_t t;
+						struct tm *info;
+						char buffer[64];
 
-					gettimeofday(&tv, NULL);
-					t = tv.tv_sec;
+						gettimeofday(&tv, NULL);
+						t = tv.tv_sec;
 
-					info = localtime(&(buf.st_mtime));
-					strftime(buffer, sizeof(buffer), "%d-%b-%Y %H:%M", info);
+						info = localtime(&(buf.st_mtime));
+						strftime(buffer, sizeof(buffer), "%d-%b-%Y %H:%M", info);
 						file.content += buffer;
 						size_t i = 0;
 						while (i++ < 20 - size_2)
@@ -408,12 +295,11 @@ t_file Server::getFile(string path)
 						while (i++ != size_2)
 							file.content += " ";
 						file.content += size_file;
-						
 					}
 					file.content += "\n";
 				}
-				
-				closedir (dir);
+
+				closedir(dir);
 			}
 			file.content += "</pre><hr></body> </html> ";
 			file.size = file.content.size();
@@ -440,8 +326,8 @@ t_file Server::getFile(string path)
 
 void Server::handle_request(Client &client)
 {
-	string type[4] = {"GET", "POST", "HEAD", "PUT"};
-	string (Server::*command[])(map<string, string>, Client &) = {&Server::GET, &Server::POST, &Server::HEAD, &Server::PUT};
+	string type[5] = {"GET", "POST", "HEAD", "PUT", "DELETE"};
+	string (Server::*command[])(map<string, string>, Client &) = {&Server::GET, &Server::POST, &Server::HEAD, &Server::PUT, &Server::DELETE};
 	string buffer = client.getContent();
 	int n;
 
@@ -449,22 +335,24 @@ void Server::handle_request(Client &client)
 	request += buffer;
 	map<string, string> p_request = request.last();
 	string response, req_type = p_request.find("Request-Type")->second;
-
+	cout << "Request-Type :[" << req_type << "]" << endl;
 	std::cout << "Request :" << endl
 			  << buffer << endl
 			  << "=====" << endl;
-
-	for (size_t i = 0; i <= type->size(); i++)
+	cout << "taille de type :" << type->size() << endl;
+	for (size_t i = 0; i <= 4; i++)
 	{
+		cout << req_type << " " << type[i] << endl;
 		if (!strncmp(req_type.c_str(), type[i].c_str(), req_type.size()))
 		{
+			cout << req_type << " " << type[i] << endl;
 			if (check_methods(findAllLoc(p_request.find("Location")->second).loc, req_type, p_request.find("Location")->second))
 				response = (this->*command[i])(p_request, client);
 			else
 				response = SEND_ERROR(STATUS_METHOD_NOT_ALLOWED, "Method Not Allowed");
 			break;
 		}
-		else if (i == type->size())
+		else if (i == 4)
 		{
 			response = SEND_ERROR(STATUS_BAD_REQUEST, "Bad Request");
 			break;
@@ -488,10 +376,11 @@ void Server::error(const char *s)
 	exit(1);
 }
 
-//PAS FINIS
+// POST method
 string Server::POST(map<string, string> header, Client &client)
 {
 	Headers tmp;
+	cout << "test" << endl;
 	string
 		resp,
 		content = header.find("Content")->second.c_str();
@@ -509,6 +398,8 @@ string Server::POST(map<string, string> header, Client &client)
 		if (*it == '.')
 			break;
 	}
+	if (header.find("Content-Length")->second == "0")
+		return (tmp.return_response_header(STATUS_NO_CONTENT, tmp, 0));
 	if (_extensions.count(extension) && _extensions.find(extension)->second.count("allow_methods"))
 	{
 	}
@@ -516,85 +407,27 @@ string Server::POST(map<string, string> header, Client &client)
 	cout << "La location : " << loc << endl;
 	// size_t pos;
 	//if ((pos = loc.rfind(".bla", loc.size() - 4)) != loc.npos)
+		t_find founded = findAllLoc(header.find("Location")->second);
 	if (_extensions.count(extension) && _extensions.find(extension)->second.count("cgi_path"))
 	{
-		CGI *cgi = new CGI(*this, header, client);
-		(void)cgi;
-		// (void)cgi;
-		// cout << "j'ai un .bla a la fin batard" << endl;
-		// // CGI cgi();
-		// char *env[15];
-		// env[0] = (char *)"REMOTE_HOST=127.0.0.1";
-		// env[1] = (char *)"SERVER_NAME=webserv";
-		// env[2] = (char *)"SERVER_PORT=8080";
-		// env[3] = (char *)"SERVER_PROTOCOL=HTTP/1.1";
-		// env[4] = (char *)"SERVER_SOFTWARE=HTTP/1.1";
-		// env[5] = (char *)"REQUEST_METHOD=POST";
-		// env[6] = (char *)"PATH_INFO=/Users/thallard/Documents/42/webserv/YoupiBanane/youpi.bla";
-		// // env[7] = (char *)"SCRIPT_NAME=/Users/thallard/Documents/42/webserv";
-		// env[7] = (char *)NULL;
-		// char *cgii[3] = {(char *)_extensions.find(extension)->second.find("cgi_path")->second.at(0).c_str(), NULL};
-		// pid_t forke;
-		// int ret = 0;
-		// // int fd = 0;
-		// int pipe1[2];
-		// int pipe2[2];
-		// if (pipe(pipe1) == -1 || pipe(pipe2) == -1)
-		// {
-		// 	perror("Pipe failed");
-		// 	exit(EXIT_FAILURE);
-		// }
-		// forke = fork();
-		// if (forke < 0)
-		// {
-		// 	perror("Fork failed");
-		// 	exit(EXIT_FAILURE);
-		// }
-		// if (forke == 0)
-		// {
-		// 	// fd = open("default/file.txt", 0777);
-		// 	dup2(pipe1[0], STDIN_FILENO);
-		// 	close(pipe1[0]);
-		// 	close(pipe1[1]);
-		// 	dup2(pipe2[1], STDOUT_FILENO);
-		// 	close(pipe2[0]);
-		// 	close(pipe2[1]);
-		// 	ret = execve(cgii[0], cgii, env);
-		// 	int errnum = errno;
-		// 	fprintf(stderr, "Failed to execute '%s' (%d: %s)\n", "tqt ", errnum, strerror(errnum));
-		// 	exit(EXIT_FAILURE);
-		// }
-		// else
-		// {
-		// 	close(pipe1[0]);
-		// 	// write(1, client.getContent().c_str(), client.getContent().size());
-		// 	int oui = write(pipe1[1], client.getContent().c_str(), client.getContent().size());
-		// 	// close(pipe1[1]);
-		// 	// client.setSocket(pipe1[1]);
-		// 	// readPerChunks(client, "POST", header);
-		// 	if (oui <= 0)
-		// 	{
-		// 		perror("Failed to write from pipe");
-		// 		exit(EXIT_FAILURE);
-		// 	}
-		// 	close(pipe1[1]);
-		// 	char buf[1550];
-
-		// 	int nb = read(pipe2[0], &buf, 1000);
-		// 	if (nb <= 0)
-		// 	{
-		// 		perror("Failed to read from pipe");
-		// 		exit(EXIT_FAILURE);
-		// 	}
-		// 	dprintf(1, "le buf : [%s]\n", buf);
-		// 	close(pipe2[0]);
-		// 	// close(fd);
-		// 	 waitpid(forke, NULL, 1);
-		// }
-		// cout << errno << endl;
-		// cout << strerror(errno) << endl;
-		// cout << ret << endl;
-		// exit(1);
+		CGI *cgi = new CGI();
+		string loc_cgi = founded.access;
+		string content_cgi = cgi->getContentFromCGI(header, (char *)(*_extensions.find(extension)->second.find("cgi_path")->second.begin()).c_str(), loc_cgi);resp = tmp.return_response_header(STATUS_OK, tmp, content_cgi.size());
+		if (header.find("Location")->second != "/directory/youpi.bla")
+		{
+			resp = tmp.return_response_header(STATUS_OK, tmp, content_cgi.size());
+			size_t pos = resp.find("\r\n\r\n");
+			resp = resp.substr(0, pos + 2);
+			resp += content_cgi;
+		}
+		else
+		{
+			content_cgi.erase(0, 16);
+			resp = tmp.return_response_header(STATUS_OK, tmp, 0);
+			size_t pos = resp.find("\r\n\r\n");
+			resp = resp.substr(0, pos + 2);
+			resp += content_cgi;
+		}
 	}
 
 	// Check if the content is chunked
@@ -606,18 +439,17 @@ string Server::POST(map<string, string> header, Client &client)
 		return resp;
 	}
 
-	if (header.find("Content-Length")->second == "0")
-		return (tmp.return_response_header(STATUS_NO_CONTENT, tmp, 0));
 
 	t_file file = getFile(header.find("Location")->second);
 	if (header.count("Content") && !header.find("Content")->second.size())
 		resp = SEND_ERROR(STATUS_NO_CONTENT, "No Content");
 
 	// Open the file and print content in
-	ofile.open("default/file_post.txt", ios::app);
-
+	ofile.open(founded.access.c_str(), ios::app);
+	cout << "jecris dans " << founded.access << endl;
 	while (nb_print < atoi(header.find("Content-Length")->second.c_str()))
 	{
+		cout << "ici\n\n\n";
 		bzero(buffer, 65535);
 
 		nb_print += content.size();
@@ -628,31 +460,71 @@ string Server::POST(map<string, string> header, Client &client)
 		content = buffer;
 	}
 
-	resp = tmp.return_response_header(200, tmp, file.size);
+	resp = tmp.return_response_header(200, tmp, 0);
 	return resp;
+}
+
+string Server::DELETE(map<string, string> header, Client &client)
+{
+	(void)client;
+	string content;
+	Headers tmp;
+	log("\e[1;93m[DELETE -> " + header.find("Location")->second + "]\e[0m");
+
+	string file = findAllLoc(header.find("Location")->second).path;
+	remove(file.c_str());
+
+	content = tmp.return_response_header(STATUS_OK, tmp, 0);
+	return (content);
 }
 
 // PUT method (create new file or trunk existent content)
 string Server::PUT(map<string, string> header, Client &client)
 {
 	(void)client;
-	// Refactoring en cours
+
 	log("\e[1;93m[PUT -> " + header.find("Location")->second + "]\e[0m");
 	Headers tmp;
 	ofstream ofile;
 	string resp, content, path = header.find("Location")->second;
+	string loc = header.find("Location")->second;
 
-	ofile.open("./default/file_put.txt", ios::app);
-	ofile << "bonjourewe\n";
+	string extension;
+	for (string::reverse_iterator it = loc.rbegin(); it != loc.rend(); it++)
+	{
+		extension.insert(extension.begin(), *it);
+		if (*it == '.')
+			break;
+	}
+		t_find founded = findAllLoc(header.find("Location")->second);
+	if (_extensions.count(extension) && _extensions.find(extension)->second.count("cgi_path"))
+	{
 
-	// ofile.open("default/file_put.txt", ofstream::out | ofstream::trunc);
-	if (!strncmp(header.find("Transfer-Encoding")->second.c_str(), "chunked", 8))
+		CGI *cgi = new CGI();
+		string content_cgi = cgi->getContentFromCGI(header, (char *)(*_extensions.find(extension)->second.find("cgi_path")->second.begin()).c_str(), founded.loc->options.params.find("root")->second + loc);
+		if (header.find("Location")->second != "/directory/youpi.bla")
+		{
+			resp = tmp.return_response_header(STATUS_OK, tmp, content_cgi.size());
+			size_t pos = resp.find("\r\n\r\n");
+			resp = resp.substr(0, pos + 2);
+			resp += content_cgi;
+		}
+		else
+		{
+			content_cgi.erase(0, 16);
+			resp = tmp.return_response_header(STATUS_OK, tmp, 0);
+			size_t pos = resp.find("\r\n\r\n");
+			resp = resp.substr(0, pos + 2);
+			resp += content_cgi;
+		}
+	}
+	ofile.open(founded.path.c_str(), ios::app);
+	
+	if (header.count("Transfer-Enconding") && !strncmp(header.find("Transfer-Encoding")->second.c_str(), "chunked", 8))
 	{
 		readPerChunks(client, "PUT", header);
 		resp = tmp.return_response_header(200, tmp, content.size());
 		return resp;
-		// resp += content;
-		// content = readPerChunks(header, socket);
 	}
 	else
 		content = header.find("Content")->second;
@@ -665,7 +537,7 @@ string Server::PUT(map<string, string> header, Client &client)
 	if (header.count("Content") && !header.find("Content")->second.size())
 		resp = SEND_ERROR(STATUS_NO_CONTENT, "No Content");
 
-	int nb_prints, fd = open("./default/file.txt", O_TRUNC | O_CREAT | O_WRONLY | O_NONBLOCK, 0777);
+	int nb_prints, fd = open(founded.access.c_str(), O_TRUNC | O_CREAT | O_WRONLY | O_NONBLOCK, 0777);
 	size_t remaining_characters = content.size(), count = 0;
 	while (count < remaining_characters)
 	{
@@ -706,8 +578,6 @@ string Server::HEAD(map<string, string> header, Client &client)
 string Server::GET(map<string, string> header, Client &client)
 {
 	(void)client;
-	std::cout << "je veux sortir sac a merde1\n";
-	(void)socket;
 	log("\e[1;93m[GET -> " + header.find("Location")->second + "]\e[0m");
 
 	t_file file = getFile(header.find("Location")->second);
@@ -716,14 +586,38 @@ string Server::GET(map<string, string> header, Client &client)
 
 	string extension;
 	string loc = header.find("Location")->second;
-	cout << "test" << endl;
 	for (string::reverse_iterator it = loc.rbegin(); it != loc.rend(); it++)
 	{
+		extension.insert(extension.begin(), *it);
 		if (*it == '.')
 			break;
-		extension.insert(extension.begin(), *it);
 	}
-cout << extension << endl;
+
+	if (_extensions.count(extension) && _extensions.find(extension)->second.count("cgi_path"))
+	{
+		t_find founded = findAllLoc(header.find("Location")->second);
+
+		CGI *cgi = new CGI();
+				string loc_cgi = founded.access;
+		string content_cgi = cgi->getContentFromCGI(header, (char *)(*_extensions.find(extension)->second.find("cgi_path")->second.begin()).c_str(), loc_cgi);
+		if (header.find("Location")->second != "/directory/youpi.bla")
+		{
+			resp = tmp.return_response_header(STATUS_OK, tmp, content_cgi.size());
+			size_t pos = resp.find("\r\n\r\n");
+			resp = resp.substr(0, pos + 2);
+			resp += content_cgi;
+		}
+		else
+		{
+			content_cgi.erase(0, 16);
+			resp = tmp.return_response_header(STATUS_OK, tmp, 0);
+			size_t pos = resp.find("\r\n\r\n");
+			resp = resp.substr(0, pos + 2);
+			resp += content_cgi;
+		}
+		return resp;
+	}
+	
 	if (file.size == -1)
 		resp = SEND_ERROR(STATUS_NOT_FOUND, "Not Found");
 	else if (header.count("coffee"))
@@ -736,7 +630,6 @@ cout << extension << endl;
 			resp = tmp.return_response_header(200, tmp, 0);
 		resp += file.content;
 	}
-	std::cout << "je veux sortir sac a merde\n";
 	return resp;
 }
 
@@ -821,36 +714,6 @@ bool Server::check_methods(t_loc *root, string meth, string loc)
 	return false;
 }
 
-// Check if a client already exists with this socket
-// int Server::exists(int socket, list<Client> &clients)
-// {
-// 	bool found = false;
-// 	list<Client>::iterator begin = clients.begin();
-// 	while (begin != clients.end())
-// 	{
-// 		if (begin->getSocket() == socket)
-// 		{
-// 			if (!(begin->readContent()))
-// 				return (false);
-// 			found = true;
-// 		}
-// 		std::cout << "boucle inf ici ma caille!2\n";
-// 		begin++;
-// 	}
-// 	std::cout << "boucle inf ici ma caille!6" << found << "\n";
-// 	if (!found)
-// 	{
-// 		Client client(clients.size() + 1, socket);
-// 		std::cout << "avant read ta mere la cheinne\n";
-// 		if (!(client.readContent()))
-// 			return (false);
-// 		std::cout << "apres read ta mere la cheinne\n";
-// 		clients.push_back(client);
-// 	}
-// 	std::cout << "boucle inf ici ma caille!7\n";
-// 	return true;
-// }
-
 int Server::findAvailableWorker(map<int, Worker *> &workers)
 {
 	size_t i = 0;
@@ -867,25 +730,20 @@ int Server::findAvailableWorker(map<int, Worker *> &workers)
 
 string Server::readPerChunks(Client &client, string method, map<string, string> header)
 {
-	(void)header;
-	static int total = 1;
 	string content, temp;
 
-	cout << "on rentre bien dans le read per chumnks\n";
-
-	// cout << client.getContent() << endl;
 	size_t pos = client.getContent().find("\r\n\r\n", 0);
 	temp = &client.getContent().at(pos + 4);
-	// cout << "[" << temp << "]" << endl;
 	ofstream ofile;
 
+	string path_file = findAllLoc(header.find("Location")->second).path;
 	if (!strcmp("PUT", method.c_str()))
-		ofile.open("./default/file_put.text", ios::out);
+		ofile.open(path_file.c_str(), ios::out);
 	else
-		ofile.open("./default/file_post.text");
+		ofile.open(path_file.c_str());
 
 	int maxBody = -1;
-	t_find file = findAllLoc("./default/file_post.text");
+	t_find file = findAllLoc(path_file);
 	if (file.loc->options.params.count("maxBody"))
 		maxBody = atoi(file.loc->options.params.find("maxBody")->second.c_str());
 
@@ -900,26 +758,17 @@ string Server::readPerChunks(Client &client, string method, map<string, string> 
 	stringstream stream;
 	stream << hex << length_char;
 	stream >> length;
-	// if (!strcmp("POST", method.c_str()))
-	// {
-	// 	temp[100] = '\0';
-	// 	ofile << temp;
-	// 	sleep(10);
-	// 	ofile.close();
-	// 	return content;
-	// }
+	
 	if (!length)
 		return content;
-	cout << "Taille de la chunk : " << length << endl;
+
 	// Append existent content from worker's recv
 	for (int j = 0; j < length; j++)
 		content += temp.at(j);
 	temp = &temp.at(length + 2);
-	cout << "Dernier charactere du temp : " << temp.size() << endl;
 	ofile << content;
 	char buff[length + 1];
 
-	// int remaining_characters;
 	while (true)
 	{
 		char buf[65535];
@@ -935,29 +784,19 @@ string Server::readPerChunks(Client &client, string method, map<string, string> 
 		stream >> length;
 		if (!length)
 			break;
-		// cout << length_char << endl;
-		cout << "Taille de la chunk : " << length << " et la taille de temp : " << temp.size() << endl;
 		int length_copy = 0;
 		if (length > static_cast<int>(temp.size()))
 		{
 			ofile << temp;
-			// content.copy((char *)temp.c_str(), )
-			total += temp.size();
 			length_copy = temp.size();
 		}
 		else
 		{
 			bzero(buff, length + 1);
-			// content_print.clear();
-			// temp[temp.size()] = '\0';
 			temp.copy(buff, length, 0);
-			// cout << "dans le else : " << strlen(buff) << endl;
 			temp = &temp.at(length + 2);
-			total += strlen(buff);
 			ofile << buff;
 			continue;
-			// ofile.close();
-			// break ;
 		}
 
 		int nbytes_read = 0;
@@ -965,8 +804,6 @@ string Server::readPerChunks(Client &client, string method, map<string, string> 
 		do
 		{
 			nbytes_read += recv(client.getSocket(), &buf[strlen(buf)], 65000 - strlen(buf), 0);
-			// log("\e[1;93m[recv() read " + to_string(nbytes_read) + " characters]\e[0;0m");
-			// cout << nbytes_read << endl;
 			if (strstr(buf, "0\r\n\r\n"))
 				break;
 		} while (65000 - strlen(buf) > 1);
@@ -975,88 +812,11 @@ string Server::readPerChunks(Client &client, string method, map<string, string> 
 		temp = buf;
 		bzero(buff, length + 1);
 		temp.copy(buff, length - length_copy, 0);
-		total += strlen(buff);
 		ofile << buff;
 		temp = &temp.at(length - length_copy + 2);
 		content.clear();
 	}
-	cout << "Characteres print de mon cote : " << total << " vrai nombre que je devrais print : " << 10000000 << endl;
 	content.clear();
 	ofile.close();
-	// string content, temp, length_char;
-	// stringstream stream;
-	// ofstream ofile;
-
-	// temp = &client.getContent().at(client.getContent().find("\r\n\r\n", 0) + 4);
-
-	// if (!strncmp(method.c_str(), "PUT", 3))
-	// 	ofile.open("./default/file_put.text", ios::out);
-	// else
-	// 	ofile.open("./default/file_post.txt", ios::out | ios::app);
-
-	// // Get the length of the chunk
-	// int i = 0, length = 0;
-	// while (temp.at(i) != '\r' && temp.at(i) != '\n')
-	// 	length_char += temp.at(i++);
-
-	// // Remove hexadecimal characters and \r\n from temp + transform hexadecimal length to decimal
-	// temp = &temp.at(i + 2);
-	// stream << hex << length_char;
-	// stream >> length;
-
-	// // Append existent content from worker's recv
-	// for (int j = 0; j < length; j++)
-	// 	content += temp.at(j);
-	// temp = &temp.at(length + 2);
-	// ofile << content;
-	// char buff[length + 1];
-
-	// while (true)
-	// {
-	// 	char buf[65535];
-	// 	bzero(buf, 65535);
-	// 	length_char.clear();
-	// 	int length_copy = 0, i = 0, nbytes_read = 0;
-
-	// 	while (temp.at(i) != '\r' && temp.at(i) != '\n')
-	// 		length_char += temp.at(i++);
-	// 	temp = &temp.at(i + 2);
-
-	// stringstream stream;
-	// 	stream << hex << length_char;
-	// 	stream >> length;
-	// 	if (!length)
-	// 		break;
-	// 	if (length > static_cast<int>(temp.size()))
-	// 	{
-	// 		ofile << temp;
-	// 		length_copy = temp.size();
-	// 	}
-	// 	else
-	// 	{
-	// 		bzero(buff, length + 1);
-	// 		temp.copy(buff, length, 0);
-	// 		temp = &temp.at(length + 2);
-	// 		ofile << buff;
-	// 		continue;
-	// 	}
-	// 	usleep(50);
-	// 	do
-	// 	{
-	// 		nbytes_read += recv(client.getSocket(), &buf[strlen(buf)], 65000 - strlen(buf), 0);
-	// 		if (strstr(buf, "0\r\n\r\n"))
-	// 			break;
-	// 	} while (65000 - strlen(buf) > 1);
-
-	// 	temp.clear();
-	// 	temp = buf;
-	// 	bzero(buff, length + 1);
-	// 	temp.copy(buff, length - length_copy, 0);
-	// 	ofile << buff;
-	// 	temp = &temp.at(length - length_copy + 2);
-	// 	content.clear();
-	// }
-	// content.clear();
-	// ofile.close();
 	return (content);
 }

@@ -3,6 +3,6 @@
   <title>Test PHP</title>
  </head>
  <body>
- <?php echo $_POST["user"]; echo " " ;?>
+ <?php echo $_GET["user"]; echo " " ;?>
  </body>
 </html>

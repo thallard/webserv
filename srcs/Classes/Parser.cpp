@@ -228,7 +228,9 @@ vector<string>Parser::parseMethod(map<string, string> args, string loc, string p
 			tmp.clear();
 		}
 		else
+		{
 			tmp.push_back(*it);
+		}
 	}
 
 	for (size_t i = 0; i < 7; i++)
@@ -259,7 +261,7 @@ vector<string> Parser::parseMethod(string parsed, string path, int n)
 	vector<string> methods;
 
 	methods.push_back("GET");
-
+cout << parsed << endl;
 	string list[] = {"GET", "HEAD", "POST", "PUT", "DELETE"};
 
 	string tmp;
@@ -281,7 +283,10 @@ vector<string> Parser::parseMethod(string parsed, string path, int n)
 					break;
 			}
 			if (!(tmp == "GET"))
+			{
 				methods.push_back(tmp);
+				cout << methods.size() << " - |" << tmp << "|" << endl;
+			}
 			tmp.clear();
 		}
 		else
@@ -299,7 +304,10 @@ vector<string> Parser::parseMethod(string parsed, string path, int n)
 			break;
 	}
 	if (!(tmp == "GET"))
-		methods.push_back(tmp);
+	{
+				methods.push_back(tmp);
+				cout << methods.size() << " - |" << tmp << "|" << endl;
+			}
 	tmp.clear();
 	return methods;
 }
@@ -704,7 +712,9 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 							i = 9;
 							break;
 						case 6:
+							cout << "for / " << endl;
 							allowed = parseMethod(get_val(line), path, n);
+							cout << "sortie" << endl;
 							i = 9;
 							break;
 						case 7:
@@ -743,8 +753,12 @@ void Parser::parseServer(int fd, string line, string path, int *numb)
 		allowed.push_back("GET");
 		//allowed.push_back("HEAD");
 	}
-	if (!loc->options.methods.size())
+	if (loc->options.methods.size() < 2)
+	{
 		loc->options.methods = allowed;
+		for (vector<string>::iterator it = allowed.begin(); it != allowed.end(); it++)
+			cout << "/ -> " << *it << endl;
+	}
 	if (!loc->options.params.count("root"))
 		loc->options.params.insert(make_pair("root", root));
 	for (list<t_loc *>::iterator it = loc->childs.begin(); it != loc->childs.end(); it++)

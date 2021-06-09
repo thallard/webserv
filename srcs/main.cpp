@@ -64,40 +64,59 @@ void *main_loop(void *arg)
 						string buff;
 						char buffer[65535];
 						int receive = 0;
+						//int i = 1;
 						do
 						{
 							bzero(buffer, 65535);
-							int len_before_recv = sizeof(buffer);
-							usleep(50);
-							nbytes_read += recv(fd, buffer, 60000 - nbytes_read, 0);
+							//int len_before_recv = sizeof(buffer);
+						usleep(50);
+							int readed = recv(fd, buffer, 65535, 0);
+							nbytes_read += readed;
+		
 							// cout <<  "[" << (int)buffer[0] << "]" << endl;
-							if (!buffer[0] && receive >= 1000)
+							if (readed)
+								cout << "buff [" << buffer << "]" << endl;
+							if(!readed)
+							{
+								if (receive >= 1000)
+								{
+									connection_closed = true;
+									cout << "\e[91m CLOSE ICI\e[0m" << endl;
+									break ;
+								}
+								else
+									receive++;
+							}
+							//	cout << i++ <<endl;
+							/*if (!buff.size() && receive >= 1000)
 							{
 								connection_closed = true;
 								break ;
 							}
-							else
-								++receive;
+							else if (!buff.size())
+								++receive;*/
 							// dprintf(1, "debug de la nbytes read = %d\n", nbytes_read);
 							buff += buffer;
-							if (60000 - nbytes_read <= 0)
-							{
-							// cout << buff << endl;
-								dprintf(1, "je rentre rune fois icic\n");
-								connection_closed = true;
-								client.setContent(buff);
-								server->handle_request(client);
-								break;
-							}
+							// if (60000 - nbytes_read <= 0)
+							// {
+							// // cout << buff << endl;
+							// 	dprintf(1, "je rentre rune fois icic\n");
+							// 	connection_closed = true;
+							// 	cout << "\e[91m CLOSE ICI 2\e[0m" << endl;
+							// 	client.setContent(buff);
+							// 	server->handle_request(client);
+							// 	break;
+							// }
 							
 							// Print log recv()
 							if (nbytes_read < 1)
 								server->log("\e[1;93m[recv() read " + to_string(nbytes_read) + " characters]\e[0;0m");
 							
-							if (nbytes_read < 1 && nbytes_read < len_before_recv)
+							if (nbytes_read < 0)
 							{
 								dprintf(1, "je rentre rune fois icic\n");
 								connection_closed = true;
+								cout << "\e[91m CLOSE ICI 3\e[0m" << endl;
 								client.setContent(buff);
 								server->handle_request(client);
 								break;
@@ -112,6 +131,7 @@ void *main_loop(void *arg)
 								break;
 							}
 						} while (true);
+						cout << buff <<endl;
 						if (connection_closed)
 						{
 							server->log("\e[1;31m[Connection closed]\e[0m");
@@ -130,7 +150,6 @@ void *main_loop(void *arg)
 			w->setServer(NULL);
 		}
 	}
-
 	return NULL;
 }
 
@@ -141,14 +160,13 @@ void *run(void *arg)
 	return (NULL);
 }
 
-int main(int argc, char *argv[], char **env)
+int main(int argc, char *argv[])
 {
 	string path;
 	if (argc < 2)
 		path = "./default/default.conf";
 	else
 		path = argv[1];
-	cout << env[0] << endl;
 	Core core(path);
 
 	// Threads for multi-workers

@@ -92,6 +92,7 @@ public:
 	string POST(map<string, string>, Client &);
 	string HEAD(map<string, string>, Client &);
 	string PUT(map<string, string>, Client &);
+	string DELETE(map<string, string>, Client &);
 	string SEND_ERROR(int, const char *);
 	string readPerChunks(Client &, string, map<string, string>);
 

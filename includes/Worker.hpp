@@ -36,15 +36,6 @@ public:
 	void setServer(Server *);
 	void setIt(int oui) { it = oui;}
 
-	// Methods
-	void handle_request(int socket);
-	string GET(map<string, string>, int);
-	string POST(map<string, string>, int);
-	string HEAD(map<string, string>, int);
-	string PUT(map<string, string>, int);
-
-	void error(const char *);
-	string SEND_ERROR(int status, const char *msg);
 };
 
 

@@ -34,10 +34,13 @@ void Headers::operator+=(string send)
 		line[line.size() - 1] = '\0';
 		if (head.size() == 0)
 		{
-			string type(line, 0, line.find('/') - 1);
+			size_t pos = line.find('/');
+			string type = line.substr(0, pos - 1);
 			head.insert(make_pair("Request-Type", type));
-			string loc(line, type.size() + 1, line.find("HTTP") - 5);
-			size_t pos;
+			line.erase(0, pos);
+			pos = line.find("HTTP");
+			string loc = line.substr(0, pos - 1);
+			cout << "location: " << loc << endl;
 			if ((pos = loc.find("?")) != string::npos)
 			{
 
@@ -48,7 +51,9 @@ void Headers::operator+=(string send)
 			}
 			else
 				head.insert(make_pair("Location", trim_whitespace(loc)));
-			string ver(line, line.find_last_of('/') + 1);
+			line.erase(0, pos);
+			pos = line.find("\r\n");
+			string ver = line.substr(0, pos - 1);
 			head.insert(make_pair("HTTP-Ver", ver));
 		}
 		else
@@ -138,7 +143,7 @@ string Headers::return_response_header(int status, Headers header, size_t size_c
 	else if (size_content > 0)
 		response += "Content-Length: " + std::to_string(size_content) + "\r\n";
 	response += "Content-Language: fr-FR\r\n";
-	response += "Cookie: user-color = #eb4034\r\n";
+	//response += "Cookie: user-color = #eb4034\r\n";
 	if (status != STATUS_HEAD)
 		response += "\r\n";
 	// cout << response;

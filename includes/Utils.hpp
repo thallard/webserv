@@ -87,6 +87,7 @@ typedef struct s_find
 {
 	t_loc *loc;
 	string path;
+	string access;
 }			t_find;
 
 
