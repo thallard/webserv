@@ -26,7 +26,6 @@ void *main_loop(void *arg)
 
 			bool connection_closed = false, server_end = false;
 			Server *server = w->getServer();
-			server->log("\e[1;96m[Worker " + to_string(w->getId()) + " is working on this server!]\e[0;0m");
 
 			// Check for an available file descriptor
 			for (int fd = 1; fd <= server->getMaxSD() && server->getDescReady() > 0; fd++)
@@ -58,34 +57,36 @@ void *main_loop(void *arg)
 					}
 					else
 					{
+						server->log("\e[1;96m[Worker " + to_string(w->getId()) + " is working on this server!]\e[0;0m");
 						fcntl(fd, F_SETFL, O_NONBLOCK);
 						Client client(server->getClients().size() + 1, fd);
 						int nbytes_read = 0;
 						string buff;
-						char buffer[65535];
+						char buffer[100000];
 						int receive = 0;
 						//int i = 1;
 						do
 						{
-							bzero(buffer, 65535);
+							bzero(buffer, 100000);
 							//int len_before_recv = sizeof(buffer);
-						usleep(50);
-							int readed = recv(fd, buffer, 65535, 0);
+							usleep(50);
+							int readed = recv(fd, buffer, 100000, 0);
 							nbytes_read += readed;
-		
-							// cout <<  "[" << (int)buffer[0] << "]" << endl;
-							if (readed)
-								cout << "buff [" << buffer << "]" << endl;
+	
+
 							if(!readed)
 							{
-								if (receive >= 1000)
+								if (receive >= 10000)
 								{
 									connection_closed = true;
 									cout << "\e[91m CLOSE ICI\e[0m" << endl;
 									break ;
 								}
 								else
+								{
 									receive++;
+									continue;
+									}
 							}
 							//	cout << i++ <<endl;
 							/*if (!buff.size() && receive >= 1000)
@@ -96,7 +97,14 @@ void *main_loop(void *arg)
 							else if (!buff.size())
 								++receive;*/
 							// dprintf(1, "debug de la nbytes read = %d\n", nbytes_read);
-							buff += buffer;
+							
+							//buff += buffer;
+							for(int i = 0; i  < readed; i++)
+							{
+								//cout << i << endl;
+								buff.push_back(buffer[i]);
+							}
+
 							// if (60000 - nbytes_read <= 0)
 							// {
 							// // cout << buff << endl;
@@ -109,14 +117,14 @@ void *main_loop(void *arg)
 							// }
 							
 							// Print log recv()
-							if (nbytes_read < 1)
-								server->log("\e[1;93m[recv() read " + to_string(nbytes_read) + " characters]\e[0;0m");
+							//if (nbytes_read > 0)
+							//	server->log("\e[1;93m[recv() read " + to_string(nbytes_read) + " characters]\e[0;0m");
 							
 							if (nbytes_read < 0)
 							{
 								dprintf(1, "je rentre rune fois icic\n");
 								connection_closed = true;
-								cout << "\e[91m CLOSE ICI 3\e[0m" << endl;
+								cout << "\e[91m CLOSE ICI 3 " << buff.size() << "\e[0m" << endl;
 								client.setContent(buff);
 								server->handle_request(client);
 								break;

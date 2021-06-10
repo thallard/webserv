@@ -27,10 +27,8 @@ Server::Server(int port)
 	_serv_addr.sin_family = AF_INET;
 	_serv_addr.sin_addr.s_addr = INADDR_ANY;
 	_serv_addr.sin_port = htons(port);
-	if (bind(_socket, (struct sockaddr *)&_serv_addr,
-			 sizeof(_serv_addr)) < 0)
+	if (bind(_socket, (struct sockaddr *)&_serv_addr, sizeof(_serv_addr)) < 0)
 		perror("ERROR on binding");
-
 	listen(_socket, 4096);
 }
 
@@ -196,7 +194,9 @@ t_find Server::findAllLoc(string path)
 cout << "found :  " <<founded.access << endl;
 	return founded;
 }
-
+#include <iostream>
+#include <fstream>
+#include <string>
 t_file Server::getFile(string path)
 {
 	t_file file = {"", -1};
@@ -314,13 +314,29 @@ t_file Server::getFile(string path)
 		std::cout << "Not Found !" << endl;
 		return file;
 	}
-	std::cout << "Found !" << endl;
+	struct stat buf;
+	bzero(&buf, sizeof(buf));
+	stat(path.c_str(), &buf);
+
+	int size = buf.st_size;
 	char c;
-	file.content.clear();
-	while (read(fd, &c, 1))
+	int ret = 0;
+	int readed;
+
+	while (ret != size)
+	{
+		readed = read(fd, &c, 1);
+		if (readed == -1)
+		{
+			close(fd);
+			std::cout << "Error while reading" << endl;
+			return file;
+		}
+		ret += readed;
 		file.content.push_back(c);
-	file.size = file.content.size();
-	close(fd);
+	}
+  	file.size = file.content.size();
+	  close(fd);
 	return file;
 }
 
@@ -360,12 +376,29 @@ void Server::handle_request(Client &client)
 	}
 
 	// DEBUG
-	std::cout << endl
-			  << "La response ici : \n"
-			  << response << endl
-			  << endl;
+	// std::cout << endl
+	// 		  << "La response ici : \n"
+	// 		  << response << endl
+	// 		  << endl;
 
-	n = send(client.getSocket(), response.c_str(), response.size(), 0);
+	cout << "send: " << response.size() << endl;
+	n = 1;
+	while (n > 0)
+	{
+		cout << "normal size: " << response.size() << endl;
+		size_t szie = response.size();
+		if(szie > 100000)
+			szie = 100000;
+			cout << "to send: " << szie << endl;
+		n = send(client.getSocket(), response.c_str(), szie, 0);
+		
+		response.erase(0, n);
+
+		cout << "sended in while: " << n << " new size: " << response.size() << endl;
+		if (!response.size())
+			break;
+	}
+	cout << "sended: " << n << endl;
 	if (n < 0)
 		error("Can't send the response");
 }
@@ -428,6 +461,8 @@ string Server::POST(map<string, string> header, Client &client)
 			resp = resp.substr(0, pos + 2);
 			resp += content_cgi;
 		}
+		delete cgi;
+		return resp;
 	}
 
 	// Check if the content is chunked
@@ -446,17 +481,19 @@ string Server::POST(map<string, string> header, Client &client)
 
 	// Open the file and print content in
 	ofile.open(founded.access.c_str(), ios::app);
-	cout << "jecris dans " << founded.access << endl;
+	cout << "jecris dans " << header.find("Content")->second.size() << endl;
 	while (nb_print < atoi(header.find("Content-Length")->second.c_str()))
 	{
-		cout << "ici\n\n\n";
+		// cout << "ici : " << nb_print << " / " << atoi(header.find("Content-Length")->second.c_str()) << " \n\n\n";
 		bzero(buffer, 65535);
 
-		nb_print += content.size();
 		ofile << content;
+		nb_print += content.size();
 		content.clear();
-
+	// int rec;
 		recv(client.getSocket(), buffer, 65535, 0);
+		
+		// nb_print += rec;
 		content = buffer;
 	}
 
@@ -517,6 +554,8 @@ string Server::PUT(map<string, string> header, Client &client)
 			resp = resp.substr(0, pos + 2);
 			resp += content_cgi;
 		}
+		delete cgi;
+		return resp;
 	}
 	ofile.open(founded.path.c_str(), ios::app);
 	
@@ -562,15 +601,12 @@ string Server::PUT(map<string, string> header, Client &client)
 string Server::HEAD(map<string, string> header, Client &client)
 {
 	(void)client;
-	(void)socket;
 	Headers tmp;
 	string resp;
 	t_file file = getFile(header.find("Location")->second);
 
-	// Return only sizeof file size - content size
 	resp = tmp.return_response_header(200, tmp, 0);
 	resp += "Location: http://localhost:8080/\r\n\r\n";
-	std::cout << resp;
 	return resp;
 }
 
@@ -625,11 +661,12 @@ string Server::GET(map<string, string> header, Client &client)
 	else
 	{
 		if (_mimes.count(extension))
-			resp = tmp.return_response_header(200, tmp, 0, _mimes.find(extension)->second);
+			resp = tmp.return_response_header(200, tmp, file.size, _mimes.find(extension)->second);
 		else
-			resp = tmp.return_response_header(200, tmp, 0);
+			resp = tmp.return_response_header(200, tmp, file.size);
 		resp += file.content;
 	}
+	cout << "file size: " << file.size << endl;
 	return resp;
 }
 
@@ -741,11 +778,7 @@ string Server::readPerChunks(Client &client, string method, map<string, string> 
 		ofile.open(path_file.c_str(), ios::out);
 	else
 		ofile.open(path_file.c_str());
-
-	int maxBody = -1;
 	t_find file = findAllLoc(path_file);
-	if (file.loc->options.params.count("maxBody"))
-		maxBody = atoi(file.loc->options.params.find("maxBody")->second.c_str());
 
 	// Get the length of the chunk
 	string length_char;

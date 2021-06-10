@@ -20,16 +20,19 @@ void Headers::operator+=(string send)
 	istringstream to_parse(send);
 	map<string, string> head;
 	string line;
-
+	string content;
+	int i = 0;
 	while (getline(to_parse, line))
 	{
+		cout << i++ << endl;
 		if (line == "\r")
 		{
 
-			getline(to_parse, line);
-
-			head.insert(make_pair("Content", line));
-			continue;
+			while(getline(to_parse, line))
+				content += line + "\n";
+			head.insert(make_pair("Content", content));
+			cout << content.find("\r\n\r\n") << endl;
+			break;
 		}
 		line[line.size() - 1] = '\0';
 		if (head.size() == 0)
@@ -66,8 +69,8 @@ void Headers::operator+=(string send)
 	if (!head.count("Content-Length"))
 		head.insert(make_pair("Content-Length", "0"));
 	_headers.insert(make_pair(_headers.size(), head));
-	
 
+//	exit(1);
 }
 
 int Headers::check(map<string, string> actual)
@@ -120,7 +123,6 @@ string Headers::return_response_header(int status, Headers header, size_t size_c
 	default:
 		break;
 	}
-
 	// Parse date
 	struct timeval tv;
 	time_t t;
@@ -207,7 +209,7 @@ string Headers::return_response_header(int status, Headers header, size_t size_c
 	if (status == STATUS_NO_CONTENT)
 		response += "Content-Length: 0\r\n";
 	else if (size_content > 0)
-		response += "Content-Length: " + std::to_string(size_content) + "\r\n";
+		response += "Content-Length: " + to_string(size_content) + "\r\n";
 	response += "Content-Language: fr-FR\r\n";
 	response += "Content-Type: " + type + "\r\n";
 	if (status != STATUS_HEAD)

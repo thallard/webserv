@@ -2,7 +2,6 @@
 
 CGI::CGI()
 {
-    
 }
 
 CGI::~CGI()
@@ -12,7 +11,7 @@ CGI::~CGI()
 string CGI::getContentFromCGI(map<string, string> header, char *path, string location)
 {
     string content;
-        vector<string> env;
+    vector<string> env;
     cout << "test" << endl;
     // Create environment for the CGI
     // env.push_back("REMOTE_HOST=127.0.0.1");
@@ -27,17 +26,20 @@ string CGI::getContentFromCGI(map<string, string> header, char *path, string loc
     env.push_back("REQUEST_METHOD=" + header.find("Request-Type")->second);
     env.push_back("REDIRECT_STATUS=200");
     env.push_back("REQUEST_URI=" + string(getcwd(NULL, 2048)));
-    
-    string query ;
-    
+
+    string query;
+
     if (header.count("Variables"))
-       query =  header.find("Variables")->second;
+        query = header.find("Variables")->second;
     else if (header.count("Content"))
+    {
         query = header.find("Content")->second;
-    
+    }
+    //cout << "1:---\n" << query << endl << "---\n2:---\n" << header.find("Content")->second << endl;
     if (!query.size())
         query.push_back('\n');
     env.push_back("QUERY_STRING=" + query);
+
     env.push_back("CONTENT_LENGTH=" + to_string(query.size()));
 
     if (header.count("Content-Type"))
@@ -51,19 +53,16 @@ string CGI::getContentFromCGI(map<string, string> header, char *path, string loc
 
     size_t i = 0;
 
-    
     char **yes = new char *[env.size() + 1];
     cout << "taille d'ici :  " << env.size() << endl;
     for (; i != env.size(); i++)
-    {
         yes[i] = (char *)env.at(i).c_str();
-        cout << yes[i] << endl;
-    }
     yes[i] = NULL;
     _env = yes;
 
     char *echo[3] = {(char *)"echo", (char *)query.c_str(), NULL};
-    cout << endl << query << endl;
+    cout << endl
+         << query << endl;
     cout << "debug de la loc " << path << endl;
     char *cmd[] = {path, (char *)location.c_str(), NULL};
     if (pipe(pipe1) == -1)
@@ -85,11 +84,12 @@ string CGI::getContentFromCGI(map<string, string> header, char *path, string loc
         close(pipe1[0]);
         ret = execvp(echo[0], echo);
     }
-    else 
+    else
     {
         int status2;
 
         wait(&status2);
+        cout << " echoed !" << endl;
         parent = fork();
         if (!parent)
         {
@@ -104,21 +104,27 @@ string CGI::getContentFromCGI(map<string, string> header, char *path, string loc
 
             wait(&status);
             close(pipe1[0]);
-    close(pipe1[1]);
-    close(tmp);
-    tmp = open(".tmp", O_NONBLOCK | O_RDONLY);
-    cout << "fd: " << tmp << endl;
-    char buf[65535];
-    bzero(buf, 65535);
-    int readed = read(tmp, buf, 65535);
-    cout << "charactere lu " << readed << endl;
-    cout << "print du buf : [" << buf << "]" << endl;
-    close(tmp);
-    cout << "print du execve : " << ret << endl;
-    content = string(buf);
-    return (content);
-     }
+            close(pipe1[1]);
+            close(tmp);
+            tmp = open(".tmp", O_NONBLOCK | O_RDONLY);
+            cout << "fd: " << tmp << endl;
+            char buf[65535];
+            bzero(buf, 65535);
+            int readed = read(tmp, buf, 65535);
+            cout << "charactere lu " << readed << endl;
+            cout << "print du buf : [" << buf << "]" << endl;
+            close(tmp);
+            cout << "print du execve : " << ret << endl;
+            content = string(buf);
+            
+          
+            delete [] yes;
+            return (content);
+        }
     }
-
-return content;
+  
+          
+         
+            delete [] yes;
+    return content;
 }

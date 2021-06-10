@@ -15,7 +15,7 @@ Core::Core(string path) : _parse(path)
   	while (getline(file, str)) {
 		while ((pos = str.find(" ")) != string::npos)
 		{
-			key = str.substr(0, pos);
+			key = "." + str.substr(0, pos);
 			str.erase(0, pos + 1);
 		}
 		mimes.insert(make_pair(key, str));
